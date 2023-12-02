@@ -1,12 +1,10 @@
-use regex::Regex;
-
 #[derive(Debug, PartialEq)]
 pub struct Game {
     id: usize,
     guesses: Vec<Guess>,
 }
 
-#[derive(Debug, Default, PartialEq, PartialOrd)]
+#[derive(Debug, Default, PartialEq)]
 pub struct Guess {
     reds: usize,
     greens: usize,
@@ -42,7 +40,6 @@ pub fn find_possible_games(correct_guess: &Guess, games: &[Game]) -> Vec<usize> 
             {
                 Some(game.id)
             } else {
-                dbg!(game);
                 None
             }
         })
@@ -73,29 +70,28 @@ pub fn find_smallest_possible_guess(games: &[Game]) -> Vec<Guess> {
 }
 
 pub fn read_file(file: &str) -> Vec<Game> {
-    let id_regex = Regex::new(r"^Game (?<id>\d+): ").unwrap();
-    let guess_regex = Regex::new(r"(?<quantity>\d+) (?<color>\w+)").unwrap();
-
     file.lines()
         .filter_map(|line| {
             let line = line.trim();
-            let captures = id_regex.captures(line)?;
-            let id = str::parse(&captures["id"]).ok()?;
-            let guesses_str = id_regex.replace(line, "");
+            let captures: Vec<&str> = line.split(':').collect();
+            let id = str::parse(&captures[0].replace("Game ", "")).ok()?;
+            let guesses_str = captures[1];
 
             let guesses: Vec<Guess> = guesses_str
                 .split(';')
                 .map(|guess_str| {
                     let mut guess = Guess::default();
 
-                    for color in guess_regex.captures_iter(guess_str) {
-                        let number: usize = str::parse(&color["quantity"]).unwrap();
+                    for color in guess_str.split(',') {
+                        let color = color.trim();
+                        let parts: Vec<&str> = color.split(' ').collect();
+                        let number: usize = str::parse(parts[0]).unwrap();
 
-                        match &color["color"] {
+                        match parts[1] {
                             "red" => guess.reds = number,
                             "blue" => guess.blues = number,
                             "green" => guess.greens = number,
-                            _ => panic!("Unexpected color: {}", &color[1]),
+                            _ => panic!("Unexpected color: {}", color),
                         }
                     }
 
