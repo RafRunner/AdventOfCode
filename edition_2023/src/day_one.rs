@@ -1,4 +1,3 @@
-
 pub fn find_calibration_sum<NumberFinder>(text: &str, f: NumberFinder) -> usize
 where
     NumberFinder: Fn(&str) -> Vec<usize>,
@@ -65,8 +64,8 @@ mod tests {
 
         let result = find_calibration_sum(&text, find_numbers);
         assert_eq!(54916, result);
-    } 
-    
+    }
+
     #[test]
     fn simple_digits_and_numbers() {
         let text = "two1nine
@@ -84,10 +83,22 @@ mod tests {
     #[test]
     fn digits_and_numbers_edge() {
         assert_eq!(55, find_calibration_sum("five", find_numbers_with_names));
-        assert_eq!(33, find_calibration_sum("threefivethree", find_numbers_with_names));
+        assert_eq!(
+            33,
+            find_calibration_sum("threefivethree", find_numbers_with_names)
+        );
         assert_eq!(82, find_calibration_sum("eightwo", find_numbers_with_names));
-        assert_eq!(58, find_calibration_sum("fiveeight3sppjtccnineeighteightnffgtlsdj", find_numbers_with_names));
-        assert_eq!(33, find_calibration_sum("threethreetwothree", find_numbers_with_names));
+        assert_eq!(
+            58,
+            find_calibration_sum(
+                "fiveeight3sppjtccnineeighteightnffgtlsdj",
+                find_numbers_with_names
+            )
+        );
+        assert_eq!(
+            33,
+            find_calibration_sum("threethreetwothree", find_numbers_with_names)
+        );
     }
 
     #[test]
