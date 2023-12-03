@@ -10,9 +10,11 @@ pub struct PartNumber {
 
 impl PartNumber {
     pub fn is_touching(&self, symbol: &Symbol) -> bool {
-        let range_plus_one =
-            self.columns.start.saturating_sub(1)..self.columns.end.saturating_add(1);
-        symbol.line.abs_diff(self.line) < 2 && range_plus_one.contains(&symbol.column)
+        symbol.line.abs_diff(self.line) < 2 && self.range_of_contact().contains(&symbol.column)
+    }
+
+    fn range_of_contact(&self) -> Range<usize> {
+        self.columns.start.saturating_sub(1)..(self.columns.end + 1)
     }
 }
 
@@ -21,6 +23,7 @@ pub struct Symbol {
     char: char,
     line: usize,
     column: usize,
+    gear_power: Option<usize>,
 }
 
 #[derive(Debug)]
@@ -39,9 +42,22 @@ impl EngineSchema {
             .sum()
     }
 
+    pub fn gear_power(&self) -> usize {
+        self.symbols.iter().filter_map(|s| s.gear_power).sum()
+    }
+
     pub fn filter_active_parts(&mut self) {
-        for part in self.parts.iter_mut() {
-            if self.symbols.iter().any(|s| part.is_touching(s)) {
+        for symbol in self.symbols.iter_mut() {
+            let part_neighbors = self
+                .parts
+                .iter_mut()
+                .filter(|p| p.is_touching(symbol))
+                .collect::<Vec<_>>();
+
+            if symbol.char == '*' && part_neighbors.len() == 2 {
+                symbol.gear_power = Some(part_neighbors[0].number * part_neighbors[1].number);
+            }
+            for part in part_neighbors {
                 part.is_part_number = true;
             }
         }
@@ -55,11 +71,11 @@ pub fn parse_engine_schema(schema_str: &str) -> EngineSchema {
     let lines = schema_str.lines();
 
     for (line_number, line) in lines.enumerate() {
-        let column_iter: Vec<(usize, char)> = line.char_indices().collect();
+        let column_iter: Vec<char> = line.chars().collect();
         let mut i = 0;
 
-        loop {
-            let (column_number, char) = column_iter[i];
+        while i < line.len() {
+            let char = column_iter[i];
 
             match char {
                 char if char.is_ascii_digit() => {
@@ -68,7 +84,7 @@ pub fn parse_engine_schema(schema_str: &str) -> EngineSchema {
 
                     let mut j = i + 1;
 
-                    while let Some((_, char)) = column_iter.get(j) {
+                    while let Some(char) = column_iter.get(j) {
                         if !char.is_numeric() {
                             break;
                         }
@@ -91,15 +107,13 @@ pub fn parse_engine_schema(schema_str: &str) -> EngineSchema {
                     symbols.push(Symbol {
                         char,
                         line: line_number,
-                        column: column_number,
+                        column: i,
+                        gear_power: None,
                     });
                 }
             }
 
             i += 1;
-            if i >= line.len() {
-                break;
-            }
         }
     }
 
@@ -129,6 +143,7 @@ mod tests {
 
         assert_eq!(6, schema.symbols.len());
         assert_eq!(4361, schema.sum_parts());
+        assert_eq!(467835, schema.gear_power());
     }
 
     #[test]
@@ -147,6 +162,14 @@ mod tests {
                 .find(|p| p.number == 386)
                 .map(|p| p.is_part_number)
         );
+        assert_eq!(
+            Some(true),
+            schema
+                .parts
+                .iter()
+                .find(|p| p.number == 535)
+                .map(|p| p.is_part_number)
+        );
     }
 
     #[test]
@@ -156,5 +179,6 @@ mod tests {
         let schema = parse_engine_schema(input);
 
         assert_eq!(533775, schema.sum_parts());
+        assert_eq!(78236071, schema.gear_power());
     }
 }
