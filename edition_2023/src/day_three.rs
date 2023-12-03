@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct PartNumber {
     number: usize,
     line: usize,
@@ -27,7 +27,7 @@ pub struct Symbol {
 }
 
 #[derive(Debug)]
-// both vec are on order of encounter
+// both vecs are on order of encounter
 pub struct EngineSchema {
     parts: Vec<PartNumber>,
     symbols: Vec<Symbol>,
@@ -46,11 +46,12 @@ impl EngineSchema {
         self.symbols.iter().filter_map(|s| s.gear_power).sum()
     }
 
-    pub fn filter_active_parts(&mut self) {
+    fn filter_active_parts(&mut self) {
         for symbol in self.symbols.iter_mut() {
             let part_neighbors = self
                 .parts
                 .iter_mut()
+                .take_while(|p| p.line < symbol.line + 2)
                 .filter(|p| p.is_touching(symbol))
                 .collect::<Vec<_>>();
 
@@ -68,52 +69,39 @@ pub fn parse_engine_schema(schema_str: &str) -> EngineSchema {
     let mut parts = Vec::<PartNumber>::new();
     let mut symbols = Vec::<Symbol>::new();
 
-    let lines = schema_str.lines();
+    for (line_number, line) in schema_str.lines().enumerate() {
+        let mut column_iter = line.chars().enumerate().peekable();
 
-    for (line_number, line) in lines.enumerate() {
-        let column_iter: Vec<char> = line.chars().collect();
-        let mut i = 0;
-
-        while i < line.len() {
-            let char = column_iter[i];
-
+        while let Some((column_number, char)) = column_iter.next() {
             match char {
                 char if char.is_ascii_digit() => {
                     let mut number_str = String::new();
                     number_str.push(char);
 
-                    let mut j = i + 1;
-
-                    while let Some(char) = column_iter.get(j) {
-                        if !char.is_numeric() {
-                            break;
-                        }
-
+                    while let Some((_, char)) =
+                        column_iter.peek().filter(|(_, c)| c.is_ascii_digit())
+                    {
                         number_str.push(*char);
-                        j += 1;
+                        column_iter.next();
                     }
 
                     parts.push(PartNumber {
                         number: number_str.parse().unwrap(),
                         line: line_number,
-                        columns: (i..j),
+                        columns: (column_number..(column_number + number_str.len())),
                         is_part_number: false,
                     });
-
-                    i += number_str.len() - 1;
                 }
                 '.' => (),
                 _ => {
                     symbols.push(Symbol {
                         char,
                         line: line_number,
-                        column: i,
+                        column: column_number,
                         gear_power: None,
                     });
                 }
             }
-
-            i += 1;
         }
     }
 
@@ -147,6 +135,27 @@ mod tests {
     }
 
     #[test]
+    fn example_unofficial() {
+        let input = "12.......*..
++.........34
+.......-12..
+..78........
+..*....60...
+78.........9
+.5.....23..$
+8...90*12...
+............
+2.2......12.
+.*.........*
+1.1..503+.56";
+
+        let schema = parse_engine_schema(input);
+
+        assert_eq!(925, schema.sum_parts());
+        assert_eq!(6756, schema.gear_power());
+    }
+
+    #[test]
     fn edge_cases_one() {
         let input = ".../.............*........../......................*..............658..........*718..........*136.....................503.899....889.498....
 ....691........341.262..36.549...........386........437.............................662...........848............#......*...................
@@ -155,20 +164,31 @@ mod tests {
         let schema = parse_engine_schema(input);
 
         assert_eq!(
-            Some(true),
-            schema
-                .parts
-                .iter()
-                .find(|p| p.number == 386)
-                .map(|p| p.is_part_number)
+            Some(&PartNumber {
+                number: 386,
+                line: 1,
+                columns: (41..44),
+                is_part_number: true
+            }),
+            schema.parts.get(12)
         );
         assert_eq!(
-            Some(true),
-            schema
-                .parts
-                .iter()
-                .find(|p| p.number == 535)
-                .map(|p| p.is_part_number)
+            Some(&PartNumber {
+                number: 936,
+                line: 2,
+                columns: (34..37),
+                is_part_number: false
+            }),
+            schema.parts.get(16)
+        );
+        assert_eq!(
+            Some(&PartNumber {
+                number: 535,
+                line: 2,
+                columns: (117..120),
+                is_part_number: true
+            }),
+            schema.parts.get(20)
         );
     }
 
