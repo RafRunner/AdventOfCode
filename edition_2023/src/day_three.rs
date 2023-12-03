@@ -127,7 +127,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn example_one() {
+    fn example() {
         let input = "467..114..
 ...*......
 ..35..633.
@@ -173,7 +173,7 @@ mod tests {
     }
 
     #[test]
-    fn full_schema_one() {
+    fn full_schema() {
         let input = include_str!("../res/day_three.txt");
 
         let schema = parse_engine_schema(input);
