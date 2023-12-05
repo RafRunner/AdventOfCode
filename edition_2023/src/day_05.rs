@@ -1,4 +1,4 @@
-use std::ops::RangeInclusive;
+use std::ops::Range;
 use std::sync::mpsc::channel;
 use threadpool::ThreadPool;
 
@@ -14,12 +14,12 @@ pub fn part_two(almanac_str: &str) -> usize {
 
 #[derive(Debug, Clone)]
 struct RangeMap {
-    ranges: Vec<(RangeInclusive<usize>, isize)>,
+    ranges: Vec<(Range<usize>, isize)>,
 }
 
 impl RangeMap {
     fn parse(ranges_str: Vec<&str>) -> Self {
-        let ranges: Vec<(RangeInclusive<usize>, isize)> = ranges_str
+        let ranges: Vec<(Range<usize>, isize)> = ranges_str
             .iter()
             .map(|line| {
                 let parts = line
@@ -28,7 +28,7 @@ impl RangeMap {
                     .collect::<Vec<_>>();
 
                 (
-                    (parts[1]..=(parts[1] + parts[2] - 1)),
+                    (parts[1]..(parts[1] + parts[2])),
                     parts[0] as isize - parts[1] as isize,
                 )
             })
