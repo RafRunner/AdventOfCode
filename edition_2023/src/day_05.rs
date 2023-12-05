@@ -1,5 +1,7 @@
+use std::num::NonZeroUsize;
 use std::ops::Range;
 use std::sync::mpsc::channel;
+use std::thread::available_parallelism;
 use threadpool::ThreadPool;
 
 pub fn part_one(almanac_str: &str) -> usize {
@@ -14,12 +16,28 @@ pub fn part_two(almanac_str: &str) -> usize {
 
 #[derive(Debug, Clone)]
 struct RangeMap {
-    ranges: Vec<(Range<usize>, isize)>,
+    input_range: Range<usize>,
+    deviation: isize,
 }
 
 impl RangeMap {
+    fn try_map(&self, n: usize) -> Option<usize> {
+        if self.input_range.contains(&n) {
+            Some((n as isize + self.deviation) as usize)
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct Mapping {
+    ranges: Vec<RangeMap>,
+}
+
+impl Mapping {
     fn parse(ranges_str: Vec<&str>) -> Self {
-        let ranges: Vec<(Range<usize>, isize)> = ranges_str
+        let ranges: Vec<RangeMap> = ranges_str
             .iter()
             .map(|line| {
                 let parts = line
@@ -27,10 +45,10 @@ impl RangeMap {
                     .map(|num| num.parse::<usize>().unwrap())
                     .collect::<Vec<_>>();
 
-                (
-                    (parts[1]..(parts[1] + parts[2])),
-                    parts[0] as isize - parts[1] as isize,
-                )
+                RangeMap {
+                    input_range: (parts[1]..(parts[1] + parts[2])),
+                    deviation: parts[0] as isize - parts[1] as isize,
+                }
             })
             .collect();
 
@@ -40,8 +58,7 @@ impl RangeMap {
     fn get(&self, input: usize) -> usize {
         self.ranges
             .iter()
-            .find(|(input_range, _)| input_range.contains(&input))
-            .map(|(_, offset)| (input as isize + offset) as usize)
+            .find_map(|range| range.try_map(input))
             .unwrap_or(input)
     }
 }
@@ -49,7 +66,7 @@ impl RangeMap {
 #[derive(Debug)]
 struct Almanac {
     seeds: Vec<usize>,
-    maps: Vec<RangeMap>,
+    maps: Vec<Mapping>,
 }
 
 impl Almanac {
@@ -65,15 +82,15 @@ impl Almanac {
             .map(|num| num.parse().unwrap())
             .collect();
 
-        let maps: Vec<RangeMap> = sections
-            .map(|text| RangeMap::parse(text.lines().skip(1).collect()))
+        let maps: Vec<Mapping> = sections
+            .map(|text| Mapping::parse(text.lines().skip(1).collect()))
             .collect();
 
         Self { seeds, maps }
     }
 
     fn find_min_location(&self, seeds: impl Iterator<Item = usize>) -> usize {
-        let pool = ThreadPool::new(16);
+        let pool = ThreadPool::new(available_parallelism().map(NonZeroUsize::get).unwrap_or(4));
         let (tx, rx) = channel();
 
         let mut min = usize::MAX;
