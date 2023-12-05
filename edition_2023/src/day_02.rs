@@ -198,7 +198,7 @@ mod tests {
 
     #[test]
     fn full_one() {
-        let games = include_str!("../res/day_two.txt");
+        let games = include_str!("../res/day_02.txt");
 
         let games = read_file(games);
 
@@ -231,7 +231,7 @@ mod tests {
 
     #[test]
     fn full_two() {
-        let games = include_str!("../res/day_two.txt");
+        let games = include_str!("../res/day_02.txt");
 
         let games = read_file(games);
         let powers: usize = find_smallest_possible_guess(&games)

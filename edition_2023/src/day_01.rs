@@ -69,7 +69,7 @@ mod tests {
 
     #[test]
     fn full_digits() {
-        let text = include_str!("../res/day_one.txt");
+        let text = include_str!("../res/day_01.txt");
 
         let result = part_one(text);
         assert_eq!(54916, result);
@@ -101,7 +101,7 @@ mod tests {
 
     #[test]
     fn full_digits_and_numbers() {
-        let text = include_str!("../res/day_one.txt");
+        let text = include_str!("../res/day_01.txt");
 
         let result = part_two(text);
         assert_eq!(54728, result);

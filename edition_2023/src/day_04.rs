@@ -96,7 +96,7 @@ mod tests {
 
     #[test]
     fn real() {
-        let input = include_str!("../res/day_four.txt");
+        let input = include_str!("../res/day_04.txt");
 
         assert_eq!(23847, part_one(input));
         assert_eq!(8570000, part_two(input));

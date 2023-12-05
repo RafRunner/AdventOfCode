@@ -207,7 +207,7 @@ mod tests {
 
     #[test]
     fn full_schema() {
-        let input = include_str!("../res/day_three.txt");
+        let input = include_str!("../res/day_03.txt");
 
         let schema = parse_engine_schema(input);
 
