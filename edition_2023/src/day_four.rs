@@ -1,20 +1,13 @@
 use std::{cell::RefCell, collections::HashSet};
 
-#[derive(Debug)]
-struct Card {
-    number: usize,
-    copies: usize,
-    matches: usize,
+pub fn part_one(cards_str: &str) -> usize {
+    parse_cards(cards_str).iter().map(calculate_points).sum()
 }
 
-pub fn part_one(file: &str) -> usize {
-    parse_cards(file).iter().map(calculate_points).sum()
-}
-
-pub fn part_two(file: &str) -> usize {
-    let cards_references: Vec<RefCell<Card>> = parse_cards(file)
+pub fn part_two(cards_str: &str) -> usize {
+    let cards_references: Vec<RefCell<Card>> = parse_cards(cards_str)
         .into_iter()
-        .map(|card| RefCell::new(card))
+        .map(RefCell::new)
         .collect();
 
     let mut total = cards_references.len();
@@ -37,6 +30,13 @@ pub fn part_two(file: &str) -> usize {
     }
 
     total
+}
+
+#[derive(Debug)]
+struct Card {
+    number: usize,
+    copies: usize,
+    matches: usize,
 }
 
 fn parse_cards(file: &str) -> Vec<Card> {
@@ -71,7 +71,6 @@ fn calculate_points(card: &Card) -> usize {
 
 fn parse_numbers(numbers: &str) -> HashSet<usize> {
     numbers
-        .trim()
         .split_whitespace()
         .map(|number| number.parse::<usize>().unwrap())
         .collect()

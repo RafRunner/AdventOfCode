@@ -1,7 +1,17 @@
 use std::ops::Range;
 
+pub fn part_one(engine_schema_str: &str) -> usize {
+    let schema = parse_engine_schema(engine_schema_str);
+    schema.sum_parts()
+}
+
+pub fn part_two(engine_schema_str: &str) -> usize {
+    let schema = parse_engine_schema(engine_schema_str);
+    schema.gear_power()
+}
+
 #[derive(Debug, PartialEq)]
-pub struct PartNumber {
+struct PartNumber {
     number: usize,
     line: usize,
     columns: Range<usize>,
@@ -9,7 +19,7 @@ pub struct PartNumber {
 }
 
 impl PartNumber {
-    pub fn is_touching(&self, symbol: &Symbol) -> bool {
+    fn is_touching(&self, symbol: &Symbol) -> bool {
         symbol.line.abs_diff(self.line) < 2 && self.range_of_contact().contains(&symbol.column)
     }
 
@@ -19,7 +29,7 @@ impl PartNumber {
 }
 
 #[derive(Debug)]
-pub struct Symbol {
+struct Symbol {
     char: char,
     line: usize,
     column: usize,
@@ -28,13 +38,13 @@ pub struct Symbol {
 
 #[derive(Debug)]
 // both vecs are on order of encounter
-pub struct EngineSchema {
+struct EngineSchema {
     parts: Vec<PartNumber>,
     symbols: Vec<Symbol>,
 }
 
 impl EngineSchema {
-    pub fn sum_parts(&self) -> usize {
+    fn sum_parts(&self) -> usize {
         self.parts
             .iter()
             .filter(|p| p.is_part_number)
@@ -42,7 +52,7 @@ impl EngineSchema {
             .sum()
     }
 
-    pub fn gear_power(&self) -> usize {
+    fn gear_power(&self) -> usize {
         self.symbols.iter().filter_map(|s| s.gear_power).sum()
     }
 
@@ -65,7 +75,7 @@ impl EngineSchema {
     }
 }
 
-pub fn parse_engine_schema(schema_str: &str) -> EngineSchema {
+fn parse_engine_schema(schema_str: &str) -> EngineSchema {
     let mut parts = Vec::<PartNumber>::new();
     let mut symbols = Vec::<Symbol>::new();
 
@@ -116,7 +126,8 @@ mod tests {
 
     #[test]
     fn example() {
-        let input = "467..114..
+        let input = "\
+467..114..
 ...*......
 ..35..633.
 ......#...
@@ -136,7 +147,8 @@ mod tests {
 
     #[test]
     fn example_unofficial() {
-        let input = "12.......*..
+        let input = "\
+12.......*..
 +.........34
 .......-12..
 ..78........
@@ -157,7 +169,8 @@ mod tests {
 
     #[test]
     fn edge_cases_one() {
-        let input = ".../.............*........../......................*..............658..........*718..........*136.....................503.899....889.498....
+        let input = "\
+.../.............*........../......................*..............658..........*718..........*136.....................503.899....889.498....
 ....691........341.262..36.549...........386........437.............................662...........848............#......*...................
 .......................*..........936...*...............................-...........*......516....%......358....707..535...........841......";
 

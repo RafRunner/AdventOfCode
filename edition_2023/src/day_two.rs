@@ -1,18 +1,34 @@
+pub fn part_one(games: &str) -> usize {
+    let correct_guess = Guess::new(12, 13, 14);
+    let games = read_file(games);
+
+    find_possible_games(&correct_guess, &games).iter().sum()
+}
+
+pub fn part_two(games: &str) -> usize {
+    let games = read_file(games);
+
+    find_smallest_possible_guess(&games)
+        .iter()
+        .map(Guess::power)
+        .sum()
+}
+
 #[derive(Debug, PartialEq)]
-pub struct Game {
+struct Game {
     id: usize,
     guesses: Vec<Guess>,
 }
 
 #[derive(Debug, Default, PartialEq)]
-pub struct Guess {
+struct Guess {
     reds: usize,
     greens: usize,
     blues: usize,
 }
 
 impl Guess {
-    pub fn new(reds: usize, greens: usize, blues: usize) -> Self {
+    fn new(reds: usize, greens: usize, blues: usize) -> Self {
         Self {
             reds,
             greens,
@@ -20,16 +36,16 @@ impl Guess {
         }
     }
 
-    pub fn is_compatible(&self, other: &Self) -> bool {
+    fn is_compatible(&self, other: &Self) -> bool {
         self.reds <= other.reds && self.greens <= other.greens && self.blues <= other.blues
     }
 
-    pub fn power(&self) -> usize {
+    fn power(&self) -> usize {
         self.reds * self.greens * self.blues
     }
 }
 
-pub fn find_possible_games(correct_guess: &Guess, games: &[Game]) -> Vec<usize> {
+fn find_possible_games(correct_guess: &Guess, games: &[Game]) -> Vec<usize> {
     games
         .iter()
         .filter_map(|game| {
@@ -46,7 +62,7 @@ pub fn find_possible_games(correct_guess: &Guess, games: &[Game]) -> Vec<usize> 
         .collect()
 }
 
-pub fn find_smallest_possible_guess(games: &[Game]) -> Vec<Guess> {
+fn find_smallest_possible_guess(games: &[Game]) -> Vec<Guess> {
     games
         .iter()
         .map(|game| {
@@ -69,7 +85,7 @@ pub fn find_smallest_possible_guess(games: &[Game]) -> Vec<Guess> {
         .collect()
 }
 
-pub fn read_file(file: &str) -> Vec<Game> {
+fn read_file(file: &str) -> Vec<Game> {
     file.lines()
         .filter_map(|line| {
             let line = line.trim();
@@ -109,8 +125,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn exemple_one() {
-        let games = "
+    fn example_one() {
+        let games = "\
         Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
         Game 2: 1 blue, 2 green; 3 green, 4 blue, 1 red; 1 green, 1 blue
         Game 3: 8 green, 6 blue, 20 red; 5 blue, 4 red, 13 green; 5 green, 1 red
@@ -173,11 +189,7 @@ mod tests {
         );
         assert_eq!(None, iter.next());
 
-        let correct_guess = Guess {
-            reds: 12,
-            blues: 14,
-            greens: 13,
-        };
+        let correct_guess = Guess::new(12, 13, 14);
 
         assert!([1, 2, 5]
             .iter()
@@ -190,11 +202,7 @@ mod tests {
 
         let games = read_file(games);
 
-        let correct_guess = Guess {
-            reds: 12,
-            blues: 14,
-            greens: 13,
-        };
+        let correct_guess = Guess::new(12, 13, 14);
 
         assert_eq!(100, games.len());
         assert_eq!(
@@ -204,8 +212,8 @@ mod tests {
     }
 
     #[test]
-    fn exemple_two() {
-        let games = "
+    fn example_two() {
+        let games = "\
         Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
         Game 2: 1 blue, 2 green; 3 green, 4 blue, 1 red; 1 green, 1 blue
         Game 3: 8 green, 6 blue, 20 red; 5 blue, 4 red, 13 green; 5 green, 1 red

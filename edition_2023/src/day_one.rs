@@ -1,4 +1,12 @@
-pub fn find_calibration_sum<NumberFinder>(text: &str, f: NumberFinder) -> usize
+pub fn part_one(calibration_text: &str) -> usize {
+    find_calibration_sum(calibration_text, find_numbers)
+}
+
+pub fn part_two(calibration_text: &str) -> usize {
+    find_calibration_sum(calibration_text, find_numbers_with_names)
+}
+
+fn find_calibration_sum<NumberFinder>(text: &str, f: NumberFinder) -> usize
 where
     NumberFinder: Fn(&str) -> Vec<usize>,
 {
@@ -8,7 +16,7 @@ where
         .fold(0, |acc, number| acc + number.unwrap_or(0))
 }
 
-pub fn find_numbers(line: &str) -> Vec<usize> {
+fn find_numbers(line: &str) -> Vec<usize> {
     line.chars()
         .filter(|c| c.is_numeric())
         .map(|n| (n as usize) - ('0' as usize))
@@ -27,8 +35,8 @@ const NUMBER_WORDS: [(&str, &str); 9] = [
     ("nine", "n9e"),
 ];
 
-pub fn find_numbers_with_names(line: &str) -> Vec<usize> {
-    let mut replaced = line.clone().to_owned();
+fn find_numbers_with_names(line: &str) -> Vec<usize> {
+    let mut replaced = line.to_owned();
 
     for (number, digit) in NUMBER_WORDS {
         replaced = replaced.replace(number, digit);
@@ -49,12 +57,13 @@ mod tests {
 
     #[test]
     fn simple_digits() {
-        let text = "1abc2
+        let text = "\
+        1abc2
         pqr3stu8vwx
         a1b2c3d4e5f
         treb7uchet";
 
-        let result = find_calibration_sum(text, find_numbers);
+        let result = part_one(text);
         assert_eq!(142, result);
     }
 
@@ -62,13 +71,14 @@ mod tests {
     fn full_digits() {
         let text = include_str!("../res/day_one.txt");
 
-        let result = find_calibration_sum(&text, find_numbers);
+        let result = part_one(text);
         assert_eq!(54916, result);
     }
 
     #[test]
     fn simple_digits_and_numbers() {
-        let text = "two1nine
+        let text = "\
+        two1nine
         eightwothree
         abcone2threexyz
         xtwone3four
@@ -76,36 +86,24 @@ mod tests {
         zoneight234
         7pqrstsixteen";
 
-        let result = find_calibration_sum(text, find_numbers_with_names);
+        let result = part_two(text);
         assert_eq!(281, result);
     }
 
     #[test]
     fn digits_and_numbers_edge() {
-        assert_eq!(55, find_calibration_sum("five", find_numbers_with_names));
-        assert_eq!(
-            33,
-            find_calibration_sum("threefivethree", find_numbers_with_names)
-        );
-        assert_eq!(82, find_calibration_sum("eightwo", find_numbers_with_names));
-        assert_eq!(
-            58,
-            find_calibration_sum(
-                "fiveeight3sppjtccnineeighteightnffgtlsdj",
-                find_numbers_with_names
-            )
-        );
-        assert_eq!(
-            33,
-            find_calibration_sum("threethreetwothree", find_numbers_with_names)
-        );
+        assert_eq!(55, part_two("five"));
+        assert_eq!(33, part_two("threefivethree"));
+        assert_eq!(82, part_two("eightwo"));
+        assert_eq!(58, part_two("fiveeight3sppjtccnineeighteightnffgtlsdj"));
+        assert_eq!(33, part_two("threethreetwothree"));
     }
 
     #[test]
     fn full_digits_and_numbers() {
         let text = include_str!("../res/day_one.txt");
 
-        let result = find_calibration_sum(&text, find_numbers_with_names);
+        let result = part_two(text);
         assert_eq!(54728, result);
     }
 }
