@@ -36,29 +36,25 @@ impl Race {
 
     fn winning_range(&self) -> Option<Range<usize>> {
         // x(t) = - t^2 + time_limit * t - distance_to_beat
-        let a = -1_f64;
         let b = self.time_limit as f64;
-        // We have to beat the time, so we add 1
+        // We have to beat the distance, so we add 1
         let c = -((self.distance_to_beat as f64) + 1.0);
 
-        let delta = b.powf(2.0) - 4.0 * a * c;
+        let delta = b.powf(2.0) + 4.0 * c;
 
         if delta <= 0.0 {
             None
         } else {
-            let delta = (delta).sqrt();
+            let delta = delta.sqrt();
 
-            let lower_limit = (-b + delta) / (2.0 * a);
-            let upper_limit = (-b - delta) / (2.0 * a);
+            // b is always positive. delta is always smaller then b (smallest distance to beat is 1)
+            let lower_limit = (b - delta) / 2.0;
+            let upper_limit = (b + delta) / 2.0;
 
-            if upper_limit < 0.0 {
-                None
-            } else {
-                // We can't be lower than lower, so ceil it
-                // We can't be higher than upper, so floor it
-                // + 1 cause excluding range
-                Some((lower_limit.ceil() as usize)..(upper_limit.floor() as usize) + 1)
-            }
+            // We can't be lower than lower, so ceil it
+            // We can't be higher than upper, so floor it
+            // + 1 cause excluding range
+            Some((lower_limit.ceil() as usize)..(upper_limit.floor() as usize) + 1)
         }
     }
 }
