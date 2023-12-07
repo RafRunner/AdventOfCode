@@ -129,7 +129,7 @@ impl Almanac {
     fn find_min_location_back(&self, seeds: Vec<Range<usize>>) -> usize {
         let mut n = 0;
         loop {
-            let mut key = n.clone();
+            let mut key = n;
 
             for map in self.maps.iter().rev() {
                 key = map.reverse_get(key)
