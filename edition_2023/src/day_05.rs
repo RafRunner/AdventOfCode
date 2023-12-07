@@ -1,8 +1,4 @@
-use std::num::NonZeroUsize;
 use std::ops::Range;
-use std::sync::mpsc::channel;
-use std::thread::available_parallelism;
-use threadpool::ThreadPool;
 
 pub fn part_one(almanac_str: &str) -> usize {
     let almanac = Almanac::parse(almanac_str);
@@ -11,7 +7,7 @@ pub fn part_one(almanac_str: &str) -> usize {
 
 pub fn part_two(almanac_str: &str) -> usize {
     let almanac = Almanac::parse(almanac_str);
-    almanac.find_min_location(almanac.seeds_as_ranges())
+    almanac.find_min_location_back(almanac.seeds_as_ranges())
 }
 
 #[derive(Debug, Clone)]
@@ -23,10 +19,24 @@ struct RangeMap {
 impl RangeMap {
     fn try_map(&self, n: usize) -> Option<usize> {
         if self.input_range.contains(&n) {
-            Some((n as isize + self.deviation) as usize)
+            Some(self.add_deviation(n))
         } else {
             None
         }
+    }
+
+    fn try_reverse_map(&self, n: usize) -> Option<usize> {
+        if n >= self.add_deviation(self.input_range.start)
+            && n < self.add_deviation(self.input_range.end)
+        {
+            Some((n as isize - self.deviation) as usize)
+        } else {
+            None
+        }
+    }
+
+    fn add_deviation(&self, n: usize) -> usize {
+        (n as isize + self.deviation) as usize
     }
 }
 
@@ -37,7 +47,7 @@ struct Mapping {
 
 impl Mapping {
     fn parse(ranges_str: Vec<&str>) -> Self {
-        let ranges: Vec<RangeMap> = ranges_str
+        let mut ranges: Vec<RangeMap> = ranges_str
             .iter()
             .map(|line| {
                 let parts = line
@@ -52,6 +62,8 @@ impl Mapping {
             })
             .collect();
 
+        ranges.sort_by(|a, b| a.input_range.start.cmp(&b.input_range.start));
+
         Self { ranges }
     }
 
@@ -59,6 +71,13 @@ impl Mapping {
         self.ranges
             .iter()
             .find_map(|range| range.try_map(input))
+            .unwrap_or(input)
+    }
+
+    fn reverse_get(&self, input: usize) -> usize {
+        self.ranges
+            .iter()
+            .find_map(|range| range.try_reverse_map(input))
             .unwrap_or(input)
     }
 }
@@ -90,38 +109,40 @@ impl Almanac {
     }
 
     fn find_min_location(&self, seeds: impl Iterator<Item = usize>) -> usize {
-        let pool = ThreadPool::new(available_parallelism().map(NonZeroUsize::get).unwrap_or(4));
-        let (tx, rx) = channel();
-
         let mut min = usize::MAX;
 
         for seed in seeds {
-            let tx = tx.clone();
-            let maps = self.maps.clone();
+            let mut key = seed;
 
-            pool.execute(move || {
-                let mut key = seed;
+            for map in &self.maps {
+                key = map.get(key);
+            }
 
-                for map in &maps {
-                    key = map.get(key);
-                }
-
-                tx.send(key).unwrap();
-            });
-        }
-
-        drop(tx);
-
-        for msg in rx {
-            if msg < min {
-                min = msg
+            if key < min {
+                min = key
             }
         }
 
         min
     }
 
-    fn seeds_as_ranges(&self) -> impl Iterator<Item = usize> + '_ {
+    fn find_min_location_back(&self, seeds: Vec<Range<usize>>) -> usize {
+        let mut n = 0;
+        loop {
+            let mut key = n.clone();
+
+            for map in self.maps.iter().rev() {
+                key = map.reverse_get(key)
+            }
+
+            if seeds.iter().any(|r| r.contains(&key)) {
+                return n;
+            }
+            n += 1;
+        }
+    }
+
+    fn seeds_as_ranges(&self) -> Vec<Range<usize>> {
         let mut ranges = self
             .seeds
             .chunks_exact(2)
@@ -135,7 +156,7 @@ impl Almanac {
 
         ranges.sort_by(|a, b| a.start.cmp(&b.start));
 
-        ranges.into_iter().flatten()
+        ranges
     }
 }
 
@@ -184,11 +205,12 @@ humidity-to-location map:
         assert_eq!(46, part_two(input));
     }
 
+    #[ignore = "Takes over a minute"]
     #[test]
     fn real() {
         let input = include_str!("../res/day_05.txt");
 
         assert_eq!(457535844, part_one(input));
-        // assert_eq!(46, part_two(input));
+        assert_eq!(41222968, part_two(input));
     }
 }
