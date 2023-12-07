@@ -3,17 +3,17 @@ use std::ops::Range;
 pub fn part_one() -> usize {
     // Time:        56     71     79     99
     // Distance:   334   1135   1350   2430
-
-    let mut races = Vec::new();
-    races.push(Race::new(56, 334));
-    races.push(Race::new(71, 1135));
-    races.push(Race::new(79, 1350));
-    races.push(Race::new(99, 2430));
+    let races = vec![
+        Race::new(56, 334),
+        Race::new(71, 1135),
+        Race::new(79, 1350),
+        Race::new(99, 2430),
+    ];
 
     races
         .into_iter()
         .map(|r| r.winning_range().map(|range| range.len()).unwrap_or(0))
-        .fold(1, |a, b| a * b)
+        .product::<usize>()
 }
 
 pub fn part_two() -> usize {
