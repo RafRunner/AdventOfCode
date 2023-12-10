@@ -4,10 +4,10 @@ use std::collections::HashMap;
 pub fn solve_puzzle(hands_str: &str, jokers: bool) -> usize {
     let mut hands = CamelHand::parse_all(hands_str, jokers);
     hands.sort();
-    hands.reverse();
 
     hands
         .into_iter()
+        .rev()
         .enumerate()
         .map(|(i, hand)| (i + 1) * hand.bet)
         .sum()
@@ -98,8 +98,9 @@ impl CamelHand {
 
         for card in cards_clone.into_iter() {
             counts
-                .entry(card.clone())
-                .or_insert_with(|| cards.iter().filter(|c| **c == card).count());
+                .entry(card)
+                .and_modify(|counter| *counter += 1)
+                .or_insert(1);
         }
 
         let jokers = if counts.len() < 2 {
@@ -108,10 +109,7 @@ impl CamelHand {
             counts.remove(&CamelCard::Joker)
         };
 
-        let mut counts = counts
-            .values()
-            .copied()
-            .collect::<Vec<_>>();
+        let mut counts = counts.into_values().collect::<Vec<_>>();
 
         counts.sort();
         counts.reverse();
@@ -137,26 +135,25 @@ impl CamelHand {
 
 impl PartialOrd for CamelHand {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        match self.kind.cmp(&other.kind) {
-            Ordering::Equal => {
-
-                for (this, other) in self.cards.iter().zip(other.cards.iter()) {
-                    match this.cmp(other) {
-                        Ordering::Equal => (),
-                        other => return Some(other),
-                    };
-                }
-
-                None
-            }
-            other => Some(other),
-        }
+        Some(self.cmp(other))
     }
 }
 
 impl Ord for CamelHand {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).unwrap_or(Ordering::Equal)
+        match self.kind.cmp(&other.kind) {
+            Ordering::Equal => {
+                for (this_card, other_card) in self.cards.iter().zip(other.cards.iter()) {
+                    match this_card.cmp(other_card) {
+                        Ordering::Equal => (),
+                        different => return different,
+                    };
+                }
+
+                Ordering::Equal
+            }
+            different => different,
+        }
     }
 }
 
