@@ -32,7 +32,7 @@ enum CamelCard {
 }
 
 impl CamelCard {
-    fn parse_cards(cards: &str, jokers: bool) -> Vec<CamelCard> {
+    fn parse_cards(cards: &str, jokers: bool) -> Vec<Self> {
         cards
             .chars()
             .map(|card_char| match &card_char {
