@@ -73,13 +73,12 @@ impl<'a> GhostMap<'a> {
 
     fn find_node(
         &self,
-        current_step: usize,
+        iteration: usize,
         start_index: usize,
         check_finished: impl Fn(&Node<'a>) -> bool,
     ) -> usize {
         let mut current_node = &self.nodes[start_index];
         let mut next_index = start_index;
-        let mut steps = current_step;
 
         for command in &self.commands {
             let next = match command {
@@ -89,13 +88,12 @@ impl<'a> GhostMap<'a> {
 
             next_index = *self.cache.get(next).unwrap();
             current_node = &self.nodes[next_index];
-            steps += 1;
         }
 
         if check_finished(current_node) {
-            steps
+            (iteration + 1) * self.commands.len()
         } else {
-            self.find_node(steps, next_index, check_finished)
+            self.find_node(iteration + 1, next_index, check_finished)
         }
     }
 }
