@@ -1,10 +1,21 @@
+use num::integer::lcm;
 use std::collections::HashMap;
 
 pub fn part_one(map_str: &str) -> usize {
     let map = GhostMap::parse_map(map_str);
-    dbg!(map.commands.len());
 
-    map.find_zzz(0, map.find_aaa_index())
+    map.find_node(0, map.find_aaa_index(), |node| node.name == "ZZZ")
+}
+
+pub fn part_two(map_str: &str) -> usize {
+    let map = GhostMap::parse_map(map_str);
+
+    map.nodes
+        .iter()
+        .filter(|n| n.name.ends_with('A'))
+        .map(|n| map.find_node(0, n.id, |node| node.name.ends_with('Z')))
+        .reduce(lcm)
+        .unwrap()
 }
 
 #[derive(Debug)]
@@ -60,9 +71,14 @@ impl<'a> GhostMap<'a> {
         *self.cache.get("AAA").unwrap()
     }
 
-    fn find_zzz(&self, current_step: usize, current_index: usize) -> usize {
-        let mut current_node = self.nodes[current_index].clone();
-        let mut next_index = current_index;
+    fn find_node(
+        &self,
+        current_step: usize,
+        start_index: usize,
+        check_finished: impl Fn(&Node<'a>) -> bool,
+    ) -> usize {
+        let mut current_node = &self.nodes[start_index];
+        let mut next_index = start_index;
         let mut steps = current_step;
 
         for command in &self.commands {
@@ -72,14 +88,14 @@ impl<'a> GhostMap<'a> {
             };
 
             next_index = *self.cache.get(next).unwrap();
-            current_node = self.nodes[next_index].clone();
+            current_node = &self.nodes[next_index];
             steps += 1;
         }
 
-        if current_node.name == "ZZZ" {
+        if check_finished(current_node) {
             steps
         } else {
-            self.find_zzz(steps, next_index)
+            self.find_node(steps, next_index, check_finished)
         }
     }
 }
@@ -100,7 +116,12 @@ impl<'a> Node<'a> {
         let left = &words[2][1..words[2].len() - 1];
         let right = &words[3][0..words[3].len() - 1];
 
-        Self { name, id, left, right }
+        Self {
+            name,
+            id,
+            left,
+            right,
+        }
     }
 }
 
@@ -117,9 +138,7 @@ mod tests {
         AAA = (BBB, BBB)
         ZZZ = (ZZZ, ZZZ)";
 
-        let map = GhostMap::parse_map(map_str);
-
-        assert_eq!(6, map.find_zzz(0, map.find_aaa_index()));
+        assert_eq!(6, part_one(map_str));
 
         let map_str = "\
         RL
@@ -132,9 +151,24 @@ mod tests {
         GGG = (GGG, GGG)
         ZZZ = (ZZZ, ZZZ)";
 
-        let map = GhostMap::parse_map(map_str);
+        assert_eq!(2, part_one(map_str));
+    }
 
-        assert_eq!(2, map.find_zzz(0, map.find_aaa_index()));
+    #[test]
+    fn example_part_two() {
+        let map_str = "\
+        LR
+
+        11A = (11B, XXX)
+        11B = (XXX, 11Z)
+        11Z = (11B, XXX)
+        22A = (22B, XXX)
+        22B = (22C, 22C)
+        22C = (22Z, 22Z)
+        22Z = (22B, 22B)
+        XXX = (XXX, XXX)";
+
+        assert_eq!(6, part_two(map_str));
     }
 
     #[test]
@@ -142,5 +176,6 @@ mod tests {
         let map_str = include_str!("../res/day_08.txt");
 
         assert_eq!(16043, part_one(map_str));
+        assert_eq!(15726453850399, part_two(map_str));
     }
 }
