@@ -90,10 +90,12 @@ impl<'a> GhostMap<'a> {
             current_node = &self.nodes[next_index];
         }
 
+        let iteration = iteration + 1;
+
         if check_finished(current_node) {
-            (iteration + 1) * self.commands.len()
+            iteration * self.commands.len()
         } else {
-            self.find_node(iteration + 1, next_index, check_finished)
+            self.find_node(iteration, next_index, check_finished)
         }
     }
 }

@@ -1,16 +1,16 @@
 pub fn part_one(changes: &str) -> isize {
-    changes
-        .lines()
-        .map(OasisSequence::parse)
-        .map(|oasis| oasis.predict_next())
-        .sum()
+    sum_predictions(changes, |oasis| oasis.predict_next())
 }
 
 pub fn part_two(changes: &str) -> isize {
+    sum_predictions(changes, |oasis| oasis.predict_next_back())
+}
+
+fn sum_predictions(changes: &str, predition: impl Fn(&OasisSequence) -> isize) -> isize {
     changes
         .lines()
         .map(OasisSequence::parse)
-        .map(|oasis| oasis.predict_next_back())
+        .map(|oasis| predition(&oasis))
         .sum()
 }
 
@@ -46,20 +46,16 @@ impl OasisSequence {
         Self { derived }
     }
 
+    fn predict(&self, folding: impl Fn(isize, &Vec<isize>) -> isize) -> isize {
+        self.derived.iter().rev().skip(1).fold(0, folding)
+    }
+
     fn predict_next(&self) -> isize {
-        self.derived
-            .iter()
-            .rev()
-            .skip(1)
-            .fold(0, |acc, elem| acc + elem.last().unwrap())
+        self.predict(|acc, elem| acc + elem.last().unwrap())
     }
 
     fn predict_next_back(&self) -> isize {
-        self.derived
-            .iter()
-            .rev()
-            .skip(1)
-            .fold(0, |acc, elem| elem.first().unwrap() - acc)
+        self.predict(|acc, elem| elem.first().unwrap() - acc)
     }
 }
 
