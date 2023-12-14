@@ -1,4 +1,4 @@
-use std::vec;
+use std::{cell::RefCell, rc::Rc, vec};
 
 pub fn part_one(maze: &str) -> usize {
     let pipe_world = parse_pipe_world(maze);
@@ -7,7 +7,7 @@ pub fn part_one(maze: &str) -> usize {
     let max = pipe_world
         .iter()
         .flatten()
-        .filter_map(|p| unsafe { (**p).distance })
+        .filter_map(|p| p.borrow().distance)
         .max()
         .unwrap_or(0);
 
@@ -58,11 +58,11 @@ impl PipeType {
 
 #[derive(Debug)]
 struct Connection {
-    pipe: *mut Pipe,
+    pipe: Rc<RefCell<Pipe>>,
 }
 
 impl Connection {
-    fn new(pipe: *mut Pipe) -> Self {
+    fn new(pipe: Rc<RefCell<Pipe>>) -> Self {
         Self { pipe }
     }
 }
@@ -91,14 +91,12 @@ impl Pipe {
         if self.line == 0 {
             None
         } else {
-            let pipe = pipe_world[self.line - 1][self.column];
+            let pipe = Rc::clone(&pipe_world[self.line - 1][self.column]);
 
-            unsafe {
-                if (*pipe).kind.connections().2 {
-                    Some(Connection::new(pipe))
-                } else {
-                    None
-                }
+            if pipe.borrow().kind.connections().2 {
+                Some(Connection::new(pipe))
+            } else {
+                None
             }
         }
     }
@@ -106,22 +104,21 @@ impl Pipe {
     fn get_down(&self, pipe_world: &PipeWorld) -> Option<Connection> {
         pipe_world
             .get(self.line + 1)
-            .map(|l| Connection::new(l[self.column]))
-            .filter(|con| unsafe { (*con.pipe).kind.connections().0 })
+            .map(|l| &l[self.column])
+            .filter(|pipe| pipe.borrow().kind.connections().0)
+            .map(|pipe| Connection::new(Rc::clone(pipe)))
     }
 
     fn get_left(&self, pipe_world: &PipeWorld) -> Option<Connection> {
         if self.column == 0 {
             None
         } else {
-            let pipe = pipe_world[self.line][self.column - 1];
+            let pipe = Rc::clone(&pipe_world[self.line][self.column - 1]);
 
-            unsafe {
-                if (*pipe).kind.connections().1 {
-                    Some(Connection::new(pipe))
-                } else {
-                    None
-                }
+            if pipe.borrow().kind.connections().1 {
+                Some(Connection::new(pipe))
+            } else {
+                None
             }
         }
     }
@@ -129,8 +126,8 @@ impl Pipe {
     fn get_right(&self, pipe_world: &PipeWorld) -> Option<Connection> {
         pipe_world[self.line]
             .get(self.column + 1)
-            .map(|p| Connection::new(*p))
-            .filter(|con| unsafe { (*con.pipe).kind.connections().3 })
+            .filter(|pipe| pipe.borrow().kind.connections().3)
+            .map(|pipe| Connection::new(Rc::clone(pipe)))
     }
 
     fn connect(&mut self, pipe_world: &PipeWorld) {
@@ -156,35 +153,9 @@ impl Pipe {
             self.connections = Some((filtered.remove(0), filtered.remove(0)));
         }
     }
-
-    fn visit_connections(&mut self, pipe_world: &PipeWorld) {
-        let mut stack = vec![self];
-
-        while let Some(current) = stack.pop() {
-            let distance = current.distance.expect("My distance should be known...");
-            current.connect(pipe_world);
-
-            let (ref mut con1, ref mut con2) = current
-                .connections
-                .as_mut()
-                .expect("I should have connections");
-            let pipe1 = con1.pipe;
-            let pipe2 = con2.pipe;
-
-            unsafe {
-                if (*pipe1).distance.is_none() {
-                    (*pipe1).distance = Some(distance + 1);
-                    stack.push(&mut *pipe1);
-                } else if (*pipe2).distance.is_none() {
-                    (*pipe2).distance = Some(distance + 1);
-                    stack.push(&mut *pipe2);
-                }
-            }
-        }
-    }
 }
 
-type PipeWorld = Vec<Vec<*mut Pipe>>;
+type PipeWorld = Vec<Vec<Rc<RefCell<Pipe>>>>;
 
 fn parse_pipe_world(input: &str) -> PipeWorld {
     input
@@ -197,10 +168,7 @@ fn parse_pipe_world(input: &str) -> PipeWorld {
                 .map(|(column_number, column)| {
                     let kind = PipeType::parse(column);
 
-                    let raw: *mut Pipe =
-                        Box::leak(Box::new(Pipe::new(kind, line_number, column_number)));
-
-                    raw
+                    Rc::new(RefCell::new(Pipe::new(kind, line_number, column_number)))
                 })
                 .collect::<Vec<_>>()
         })
@@ -210,17 +178,37 @@ fn parse_pipe_world(input: &str) -> PipeWorld {
 fn find_connections_and_distances(pipe_world: &PipeWorld) {
     let starting = pipe_world
         .iter()
-        .filter_map(|line| {
-            line.iter()
-                .find(|p| unsafe { (***p).kind == PipeType::StartingPosition })
-        })
-        .take(1)
-        .collect::<Vec<_>>();
+        .flatten()
+        .find(|p| p.borrow().kind == PipeType::StartingPosition);
 
-    unsafe {
-        let starting = **starting.first().unwrap();
-        (*starting).distance = Some(0);
-        (*starting).visit_connections(pipe_world);
+    let starting = starting.unwrap();
+    visit_connections(Rc::clone(starting), pipe_world);
+}
+
+fn visit_connections(starting: Rc<RefCell<Pipe>>, pipe_world: &PipeWorld) {
+    starting.borrow_mut().distance = Some(0);
+    let mut stack = vec![starting];
+
+    while let Some(current) = stack.pop() {
+        let distance = current
+            .borrow()
+            .distance
+            .expect("My distance should be known...");
+        current.borrow_mut().connect(pipe_world);
+
+        let connections = &current.borrow().connections;
+
+        let (ref con1, ref con2) = connections.as_ref().expect("I should have connections");
+        let pipe1 = Rc::clone(&con1.pipe);
+        let pipe2 = Rc::clone(&con2.pipe);
+
+        if pipe1.borrow().distance.is_none() {
+            pipe1.borrow_mut().distance = Some(distance + 1);
+            stack.push(pipe1);
+        } else if pipe2.borrow().distance.is_none() {
+            pipe2.borrow_mut().distance = Some(distance + 1);
+            stack.push(pipe2);
+        }
     }
 }
 
