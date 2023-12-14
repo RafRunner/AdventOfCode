@@ -57,22 +57,13 @@ impl PipeType {
 }
 
 #[derive(Debug)]
-enum Direction {
-    FromNorth,
-    FromEast,
-    FromSouth,
-    FromWest,
-}
-
-#[derive(Debug)]
 struct Connection {
     pipe: *mut Pipe,
-    direction: Direction,
 }
 
 impl Connection {
-    fn new(pipe: *mut Pipe, direction: Direction) -> Self {
-        Self { pipe, direction }
+    fn new(pipe: *mut Pipe) -> Self {
+        Self { pipe }
     }
 }
 
@@ -104,7 +95,7 @@ impl Pipe {
 
             unsafe {
                 if (*pipe).kind.connections().2 {
-                    Some(Connection::new(pipe, Direction::FromSouth))
+                    Some(Connection::new(pipe))
                 } else {
                     None
                 }
@@ -115,7 +106,7 @@ impl Pipe {
     fn get_down(&self, pipe_world: &PipeWorld) -> Option<Connection> {
         pipe_world
             .get(self.line + 1)
-            .map(|l| Connection::new(l[self.column], Direction::FromNorth))
+            .map(|l| Connection::new(l[self.column]))
             .filter(|con| unsafe { (*con.pipe).kind.connections().0 })
     }
 
@@ -127,7 +118,7 @@ impl Pipe {
 
             unsafe {
                 if (*pipe).kind.connections().1 {
-                    Some(Connection::new(pipe, Direction::FromEast))
+                    Some(Connection::new(pipe))
                 } else {
                     None
                 }
@@ -138,39 +129,36 @@ impl Pipe {
     fn get_right(&self, pipe_world: &PipeWorld) -> Option<Connection> {
         pipe_world[self.line]
             .get(self.column + 1)
-            .map(|p| Connection::new(p.clone(), Direction::FromWest))
+            .map(|p| Connection::new(*p))
             .filter(|con| unsafe { (*con.pipe).kind.connections().3 })
     }
 
     fn connect(&mut self, pipe_world: &PipeWorld) {
-        let connections = match self.kind {
-            PipeType::Horizontal => self.get_left(pipe_world).zip(self.get_right(pipe_world)),
-            PipeType::Vertical => self.get_up(pipe_world).zip(self.get_down(pipe_world)),
-            PipeType::NorthEast => self.get_up(pipe_world).zip(self.get_right(pipe_world)),
-            PipeType::NorthWest => self.get_up(pipe_world).zip(self.get_left(pipe_world)),
-            PipeType::SouthWest => self.get_down(pipe_world).zip(self.get_left(pipe_world)),
-            PipeType::SouthEast => self.get_down(pipe_world).zip(self.get_right(pipe_world)),
-            PipeType::StartingPosition => {
-                let cons = vec![
-                    self.get_up(pipe_world),
-                    self.get_right(pipe_world),
-                    self.get_down(pipe_world),
-                    self.get_left(pipe_world),
-                ];
+        let mut connections = Vec::new();
+        let diretions = self.kind.connections();
 
-                let mut filtered = cons.into_iter().flatten().collect::<Vec<_>>();
+        if diretions.0 {
+            connections.push(self.get_up(pipe_world));
+        }
+        if diretions.1 {
+            connections.push(self.get_right(pipe_world));
+        }
+        if diretions.2 {
+            connections.push(self.get_down(pipe_world));
+        }
+        if diretions.3 {
+            connections.push(self.get_left(pipe_world))
+        }
 
-                Some((filtered.remove(0), filtered.remove(0)))
-            }
-            _ => None,
-        };
+        let mut filtered = connections.into_iter().flatten().collect::<Vec<_>>();
 
-        self.connections = connections;
+        if filtered.len() >= 2 {
+            self.connections = Some((filtered.remove(0), filtered.remove(0)));
+        }
     }
 
     fn visit_connections(&mut self, pipe_world: &PipeWorld) {
-        let mut stack = Vec::new();
-        stack.push(self);
+        let mut stack = vec![self];
 
         while let Some(current) = stack.pop() {
             let distance = current.distance.expect("My distance should be known...");
@@ -186,11 +174,9 @@ impl Pipe {
             unsafe {
                 if (*pipe1).distance.is_none() {
                     (*pipe1).distance = Some(distance + 1);
-                    (*pipe1).connect(pipe_world);
                     stack.push(&mut *pipe1);
                 } else if (*pipe2).distance.is_none() {
                     (*pipe2).distance = Some(distance + 1);
-                    (*pipe2).connect(pipe_world);
                     stack.push(&mut *pipe2);
                 }
             }
@@ -244,39 +230,29 @@ mod test {
 
     #[test]
     fn example() {
-        //         let input = "\
-        // ..F7.
-        // .FJ|.
-        // SJ.L7
-        // |F--J
-        // LJ...";
+        let input = "\
+        .....
+        .S-7.
+        .|.|.
+        .L-J.
+        .....";
+
+        assert_eq!(4, part_one(input));
+
+        let input = "\
+        ..F7.
+        .FJ|.
+        SJ.L7
+        |F--J
+        LJ...";
+
+        assert_eq!(8, part_one(input));
+    }
+
+    #[test]
+    fn real() {
         let input = include_str!("../res/day_10.txt");
 
-        let pipe_world = parse_pipe_world(input);
-        find_connections_and_distances(&pipe_world);
-
-        // for line in &pipe_world {
-        //     for column in line {
-        //         unsafe {
-        //             print!(
-        //                 "{}",
-        //                 (**column)
-        //                     .distance
-        //                     .map(|d| format!("{:>3}", d))
-        //                     .unwrap_or("...".to_owned())
-        //             )
-        //         }
-        //     }
-        //     println!();
-        // }
-
-        let mut dists = pipe_world
-            .iter()
-            .flatten()
-            .filter_map(|p| unsafe { (**p).distance })
-            .collect::<Vec<_>>();
-        dists.sort();
-
-        dbg!(dists);
+        assert_eq!(6856, part_one(input));
     }
 }
