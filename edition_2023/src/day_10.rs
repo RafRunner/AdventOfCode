@@ -241,10 +241,10 @@ fn visit_connections(
     starting: Rc<RefCell<Pipe>>,
     pipe_world: &PipeWorld,
 ) -> Vec<Rc<RefCell<Pipe>>> {
+    starting.borrow_mut().distance = Some(0);
+
     let mut pipe_loop = Vec::new();
     let mut stack = vec![starting];
-
-    starting.borrow_mut().distance = Some(0);
 
     while let Some(current) = stack.pop() {
         pipe_loop.push(Rc::clone(&current));
