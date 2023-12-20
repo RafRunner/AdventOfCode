@@ -36,22 +36,22 @@ impl Universe {
             })
             .collect::<Vec<_>>();
 
-        let mut partial = Self {
+        let expansion_lines = Self::find_empty(&galaxies, |p| p.y);
+        let expansion_columns = Self::find_empty(&galaxies, |p| p.x);
+
+        let mut universe = Self {
             galaxies,
-            expansion_lines: Vec::new(),
-            expansion_columns: Vec::new(),
+            expansion_lines,
+            expansion_columns,
         };
 
-        partial.expansion_lines = partial.find_empty(|p| p.y);
-        partial.expansion_columns = partial.find_empty(|p| p.x);
-
-        partial.expand(expansion);
-        partial
+        universe.expand(expansion);
+        universe
     }
 
-    fn find_empty(&mut self, mapper: impl Fn(&Point) -> isize) -> Vec<isize> {
+    fn find_empty(galaxies: &[Point], mapper: impl Fn(&Point) -> isize) -> Vec<isize> {
         let mut empty = Vec::new();
-        let coordinates = self.galaxies.iter().map(mapper).collect::<HashSet<_>>();
+        let coordinates = galaxies.iter().map(mapper).collect::<HashSet<_>>();
 
         for x in 0..coordinates.iter().max().cloned().unwrap_or(0) {
             if !coordinates.contains(&x) {
