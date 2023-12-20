@@ -1,12 +1,13 @@
 use std::{cell::RefCell, rc::Rc, vec};
 
+use crate::common::Point;
+
 pub fn part_one(maze: &str) -> usize {
     let pipe_world = parse_pipe_world(maze);
-    find_connections_and_distances(&pipe_world);
+    let pipe_loop = find_connections_and_distances(&pipe_world);
 
-    let max = pipe_world
+    let max = pipe_loop
         .iter()
-        .flatten()
         .filter_map(|p| p.borrow().distance)
         .max()
         .unwrap_or(0);
@@ -22,42 +23,16 @@ pub fn part_two(maze: &str) -> usize {
 
     let points = vertices
         .iter()
-        .map(|pipe| Point::new(columns - pipe.borrow().column, lines - pipe.borrow().line))
+        .map(|pipe| Point::new_usize(columns - pipe.borrow().column, lines - pipe.borrow().line))
         .collect::<Vec<_>>();
 
-    let area = shoelace_area(&points);
+    let area = Point::shoelace_area(&points);
 
     // Pick's Theorem
     // Area = Inside + InEdge/2  - 1
     // Inside = Area - InEdge/2  + 1
 
     (area - vertices.len() as f64 / 2.0 + 1.0) as usize
-}
-
-#[derive(Debug)]
-struct Point {
-    x: isize,
-    y: isize,
-}
-
-impl Point {
-    fn new(x: usize, y: usize) -> Self {
-        Self {
-            x: x as isize,
-            y: y as isize,
-        }
-    }
-}
-
-fn shoelace_area(points: &[Point]) -> f64 {
-    let sum = points
-        .iter()
-        .zip(points.iter().cycle().skip(1))
-        .map(|(p1, p2)| p1.x * p2.y - p2.x * p1.y)
-        .sum::<isize>()
-        .abs();
-
-    sum as f64 / 2.0
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -297,20 +272,6 @@ mod test {
 
         assert_eq!(8, part_one(input));
         assert_eq!(1, part_two(input));
-    }
-
-    #[test]
-    fn test_shoelace() {
-        assert_eq!(
-            16.5,
-            shoelace_area(&vec![
-                Point::new(1, 6),
-                Point::new(3, 1),
-                Point::new(7, 2),
-                Point::new(4, 4),
-                Point::new(8, 5)
-            ])
-        );
     }
 
     #[test]
