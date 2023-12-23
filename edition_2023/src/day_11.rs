@@ -50,19 +50,16 @@ impl Universe {
     }
 
     fn find_empty(galaxies: &[Point], mapper: impl Fn(&Point) -> isize) -> Vec<isize> {
-        let mut empty = Vec::new();
         let coordinates = galaxies.iter().map(mapper).collect::<HashSet<_>>();
 
-        for x in 0..coordinates.iter().max().cloned().unwrap_or(0) {
-            if !coordinates.contains(&x) {
-                empty.push(x);
-            }
-        }
-
-        empty
+        (0..coordinates.iter().max().cloned().unwrap_or(0))
+            .filter(|x| !coordinates.contains(x))
+            .collect()
     }
 
     fn expand(&mut self, amount: usize) {
+        assert!(amount > 0, "Expansion amount must be positive");
+
         for point in self.galaxies.iter_mut() {
             let times_x = self
                 .expansion_columns
