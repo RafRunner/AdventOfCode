@@ -1,13 +1,45 @@
+use std::{collections::HashMap, sync::Mutex};
+
 pub fn part_one(diagrams: &str) -> usize {
     let records = Record::parse(diagrams);
 
     records
         .into_iter()
-        .map(|record| record.possible_arrangements().len())
+        .map(|record| record.count_possible())
         .sum()
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+pub fn part_two(diagrams: &str) -> usize {
+    let records = Record::parse(diagrams);
+
+    records
+        .into_iter()
+        .map(|record| {
+            let mut five_springs = Vec::new();
+
+            for i in 0..5 {
+                five_springs.extend(record.springs.clone());
+                if i != 4 {
+                    five_springs.push(SpringType::Unknown);
+                }
+            }
+
+            Record {
+                springs: five_springs,
+                groups: record
+                    .groups
+                    .iter()
+                    .cycle()
+                    .take(record.groups.len() * 5)
+                    .cloned()
+                    .collect(),
+            }
+        })
+        .map(|record| record.count_possible())
+        .sum()
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 enum SpringType {
     Functional,
     Broken,
@@ -25,10 +57,14 @@ impl SpringType {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct Record {
     springs: Vec<SpringType>,
     groups: Vec<usize>,
+}
+
+lazy_static! {
+    static ref CACHE: Mutex<HashMap<Record, usize>> = Mutex::new(HashMap::new());
 }
 
 impl Record {
@@ -55,81 +91,67 @@ impl Record {
             })
             .collect()
     }
-
-    fn is_possible(&self) -> Option<bool> {
-        let mut checked_groups = Vec::new();
-        let mut current_count = 0_usize;
-        let mut group_count = 0_usize;
-
-        for spring in &self.springs {
-            if *spring == SpringType::Unknown {
-                // We're not sure if it is possible
-                return None;
-            }
-
-            if *spring == SpringType::Broken {
-                current_count += 1;
-            } else if current_count > 0 {
-                if let Some(count) = self.groups.get(group_count) {
-                    if current_count != *count {
-                        return Some(false);
-                    }
+    fn count_possible(&self) -> usize {
+        // Handle base cases
+        match (self.springs.is_empty(), self.groups.is_empty()) {
+            (true, true) => return 1,  // We're done
+            (true, false) => return 0, // No possible spring to match the group
+            // No more groups to match a broken spring. Else we have 1 possibility: all functional
+            (false, true) => {
+                return if self.springs.contains(&SpringType::Broken) {
+                    0
                 } else {
-                    return Some(false);
+                    1
                 }
-                group_count += 1;
-                checked_groups.push(current_count);
-                current_count = 0;
             }
+            _ => (),
         }
 
-        if current_count > 0 {
-            checked_groups.push(current_count);
+        // Check cache
+        if let Some(&total) = CACHE.lock().unwrap().get(self) {
+            return total;
         }
 
-        Some(checked_groups.eq(&self.groups))
-    }
+        let mut total = 0;
+        let spring = &self.springs[0];
 
-    fn generate_possibilities(&self) -> Vec<Self> {
-        if self.springs.contains(&SpringType::Unknown) {
-            let mut variations = Vec::new();
+        // Functional or Unknown spring case. Just check the rest
+        if *spring == SpringType::Functional || *spring == SpringType::Unknown {
+            let partial = Self {
+                springs: self.springs.iter().skip(1).cloned().collect(),
+                groups: self.groups.clone(),
+            };
+            total += partial.count_possible();
+        }
 
-            let first_unknow = self
+        // Broken or Unknown spring case. Check if the group could match and then check the rest removing the group
+        if (*spring == SpringType::Broken || *spring == SpringType::Unknown)
+            && self.groups[0] <= self.springs.len()
+            && !self
                 .springs
                 .iter()
-                .position(|s| *s == SpringType::Unknown)
-                .unwrap();
-
-            for possibility in [SpringType::Broken, SpringType::Functional] {
-                let mut new_springs = self.springs.clone();
-                let _ = std::mem::replace(&mut new_springs[first_unknow], possibility);
-
-                let new_record = Self {
-                    springs: new_springs,
-                    groups: self.groups.clone(),
-                };
-
-                // Abort impossible variations early
-                if let Some(possible) = new_record.is_possible() {
-                    if !possible {
-                        continue;
-                    }
-                }
-
-                variations.extend(new_record.generate_possibilities());
-            }
-
-            variations
-        } else {
-            vec![self.clone()]
+                .take(self.groups[0])
+                .any(|s| *s == SpringType::Functional)
+            && self
+                .springs
+                .get(self.groups[0])
+                .map_or(true, |s| *s != SpringType::Broken)
+        {
+            let partial = Self {
+                springs: self
+                    .springs
+                    .iter()
+                    .skip(self.groups[0] + 1)
+                    .cloned()
+                    .collect(),
+                groups: self.groups.iter().skip(1).cloned().collect(),
+            };
+            total += partial.count_possible();
         }
-    }
 
-    fn possible_arrangements(&self) -> Vec<Self> {
-        self.generate_possibilities()
-            .into_iter()
-            .filter(|rec| rec.is_possible().unwrap())
-            .collect()
+        // Update cache
+        CACHE.lock().unwrap().insert(self.clone(), total);
+        total
     }
 }
 
@@ -147,14 +169,8 @@ mod test {
         ????.######..#####. 1,6,5
         ?###???????? 3,2,1";
 
-        let records = Record::parse(diagram);
-
-        assert_eq!(1, records[0].possible_arrangements().len());
-        assert_eq!(4, records[1].possible_arrangements().len());
-        assert_eq!(1, records[2].possible_arrangements().len());
-        assert_eq!(1, records[3].possible_arrangements().len());
-        assert_eq!(4, records[4].possible_arrangements().len());
-        assert_eq!(10, records[5].possible_arrangements().len());
+        assert_eq!(21, part_one(diagram));
+        assert_eq!(525152, part_two(diagram));
     }
 
     #[test]
@@ -162,5 +178,12 @@ mod test {
         let diagram = include_str!("../res/day_12.txt");
 
         assert_eq!(7674, part_one(diagram));
+    }
+
+    #[test]
+    fn real_part_two() {
+        let diagram = include_str!("../res/day_12.txt");
+
+        assert_eq!(4443895258186, part_two(diagram));
     }
 }
