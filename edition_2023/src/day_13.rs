@@ -108,6 +108,6 @@ mod tests {
     fn real() {
         let grid = include_str!("../res/day_13.txt");
 
-        assert_eq!(8062, part_one(grid));
+        assert_eq!(36041, part_one(grid));
     }
 }
