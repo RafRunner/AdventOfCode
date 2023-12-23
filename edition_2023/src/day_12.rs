@@ -1,11 +1,15 @@
-use std::{collections::HashMap, sync::Mutex};
+use std::{
+    collections::{hash_map::DefaultHasher, HashMap},
+    hash::{Hash, Hasher},
+    sync::Mutex,
+};
 
 pub fn part_one(diagrams: &str) -> usize {
     let records = Record::parse(diagrams);
 
     records
         .into_iter()
-        .map(|record| record.count_possible())
+        .map(|record| record.as_record_ref().count_possible())
         .sum()
 }
 
@@ -35,7 +39,7 @@ pub fn part_two(diagrams: &str) -> usize {
                     .collect(),
             }
         })
-        .map(|record| record.count_possible())
+        .map(|record| record.as_record_ref().count_possible())
         .sum()
 }
 
@@ -57,14 +61,20 @@ impl SpringType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug)]
 struct Record {
     springs: Vec<SpringType>,
     groups: Vec<usize>,
 }
 
+#[derive(Debug, Hash)]
+struct RecordRef<'a> {
+    springs: &'a [SpringType],
+    groups: &'a [usize],
+}
+
 lazy_static! {
-    static ref CACHE: Mutex<HashMap<Record, usize>> = Mutex::new(HashMap::new());
+    static ref CACHE: Mutex<HashMap<u64, usize>> = Mutex::new(HashMap::new());
 }
 
 impl Record {
@@ -91,6 +101,16 @@ impl Record {
             })
             .collect()
     }
+
+    fn as_record_ref(&self) -> RecordRef {
+        RecordRef {
+            springs: &self.springs,
+            groups: &self.groups,
+        }
+    }
+}
+
+impl<'a> RecordRef<'a> {
     fn count_possible(&self) -> usize {
         // Handle base cases
         match (self.springs.is_empty(), self.groups.is_empty()) {
@@ -108,7 +128,7 @@ impl Record {
         }
 
         // Check cache
-        if let Some(&total) = CACHE.lock().unwrap().get(self) {
+        if let Some(&total) = CACHE.lock().unwrap().get(&self.default_hash()) {
             return total;
         }
 
@@ -118,8 +138,8 @@ impl Record {
         // Functional or Unknown spring case. Just check the rest
         if *spring == SpringType::Functional || *spring == SpringType::Unknown {
             let partial = Self {
-                springs: self.springs.iter().skip(1).cloned().collect(),
-                groups: self.groups.clone(),
+                springs: &self.springs[1..],
+                groups: self.groups,
             };
             total += partial.count_possible();
         }
@@ -138,20 +158,21 @@ impl Record {
                 .map_or(true, |s| *s != SpringType::Broken)
         {
             let partial = Self {
-                springs: self
-                    .springs
-                    .iter()
-                    .skip(self.groups[0] + 1)
-                    .cloned()
-                    .collect(),
-                groups: self.groups.iter().skip(1).cloned().collect(),
+                springs: &self.springs[(self.groups[0] + 1).min(self.springs.len())..],
+                groups: &self.groups[1..],
             };
             total += partial.count_possible();
         }
 
         // Update cache
-        CACHE.lock().unwrap().insert(self.clone(), total);
+        CACHE.lock().unwrap().insert(self.default_hash(), total);
         total
+    }
+
+    fn default_hash(&self) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        self.hash(&mut hasher);
+        hasher.finish()
     }
 }
 
