@@ -3,13 +3,7 @@ pub fn part_one(diagrams: &str) -> usize {
 
     records
         .into_iter()
-        .map(|record| {
-            record
-                .generate_possibilities()
-                .into_iter()
-                .filter(|rec| rec.is_possible())
-                .count()
-        })
+        .map(|record| record.possible_arrangements().len())
         .sum()
 }
 
@@ -26,7 +20,7 @@ impl SpringType {
             '.' => Self::Functional,
             '#' => Self::Broken,
             '?' => Self::Unknown,
-            _ => panic!("Unknow spring type {}", spring_char),
+            _ => panic!("Invalid spring type {}", spring_char),
         }
     }
 }
@@ -62,14 +56,28 @@ impl Record {
             .collect()
     }
 
-    fn is_possible(&self) -> bool {
+    fn is_possible(&self) -> Option<bool> {
         let mut checked_groups = Vec::new();
         let mut current_count = 0_usize;
+        let mut group_count = 0_usize;
 
         for spring in &self.springs {
+            if *spring == SpringType::Unknown {
+                // We're not sure if it is possible
+                return None;
+            }
+
             if *spring == SpringType::Broken {
                 current_count += 1;
             } else if current_count > 0 {
+                if let Some(count) = self.groups.get(group_count) {
+                    if current_count != *count {
+                        return Some(false);
+                    }
+                } else {
+                    return Some(false);
+                }
+                group_count += 1;
                 checked_groups.push(current_count);
                 current_count = 0;
             }
@@ -79,7 +87,7 @@ impl Record {
             checked_groups.push(current_count);
         }
 
-        checked_groups.eq(&self.groups)
+        Some(checked_groups.eq(&self.groups))
     }
 
     fn generate_possibilities(&self) -> Vec<Self> {
@@ -101,6 +109,13 @@ impl Record {
                     groups: self.groups.clone(),
                 };
 
+                // Abort impossible variations early
+                if let Some(possible) = new_record.is_possible() {
+                    if !possible {
+                        continue;
+                    }
+                }
+
                 variations.extend(new_record.generate_possibilities());
             }
 
@@ -108,6 +123,13 @@ impl Record {
         } else {
             vec![self.clone()]
         }
+    }
+
+    fn possible_arrangements(&self) -> Vec<Self> {
+        self.generate_possibilities()
+            .into_iter()
+            .filter(|rec| rec.is_possible().unwrap())
+            .collect()
     }
 }
 
@@ -125,10 +147,16 @@ mod test {
         ????.######..#####. 1,6,5
         ?###???????? 3,2,1";
 
-        assert_eq!(21, part_one(diagram));
+        let records = Record::parse(diagram);
+
+        assert_eq!(1, records[0].possible_arrangements().len());
+        assert_eq!(4, records[1].possible_arrangements().len());
+        assert_eq!(1, records[2].possible_arrangements().len());
+        assert_eq!(1, records[3].possible_arrangements().len());
+        assert_eq!(4, records[4].possible_arrangements().len());
+        assert_eq!(10, records[5].possible_arrangements().len());
     }
 
-    #[ignore = "Takes over a minute"]
     #[test]
     fn real() {
         let diagram = include_str!("../res/day_12.txt");
