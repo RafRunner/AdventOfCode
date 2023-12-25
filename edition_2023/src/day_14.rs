@@ -1,4 +1,7 @@
-use std::collections::HashSet;
+use std::{
+    collections::{hash_map::DefaultHasher, HashSet},
+    hash::{Hash, Hasher},
+};
 
 use crate::common::turn_anticlock;
 
@@ -12,6 +15,7 @@ pub fn part_one(rocks_str: &str) -> usize {
 pub fn part_two(rocks_str: &str) -> usize {
     let mut rocks = parse(rocks_str);
     let mut sequence = Vec::new();
+    let mut hashes = Vec::new();
 
     for index in 0..usize::MAX {
         for _ in 0..4 {
@@ -20,15 +24,19 @@ pub fn part_two(rocks_str: &str) -> usize {
         }
         let last_value = calculate_value(&rocks);
         sequence.push(last_value);
+        let mut hasher = DefaultHasher::new();
+        rocks.hash(&mut hasher);
+        hashes.push(hasher.finish());
 
-        if index > 50 {
-            let repetition = find_longest_repeating_sequence(&sequence);
-            if repetition.len() > 1 {
+        // Let the sequence stabilize
+        if index > 10 {
+            let repetition = find_longest_repeating_sequence(&hashes);
+            if !repetition.is_empty() {
                 // Why -2? I don't know
                 let true_start = 1000000000 - index + repetition.len() * 2 - 2;
                 let rem = true_start % repetition.len();
-    
-                return repetition[rem];
+
+                return sequence[index - (repetition.len() - rem - 1)];
             }
         }
     }
@@ -36,7 +44,7 @@ pub fn part_two(rocks_str: &str) -> usize {
     unreachable!("A repetition should be found");
 }
 
-fn find_longest_repeating_sequence(data: &[usize]) -> Vec<usize> {
+fn find_longest_repeating_sequence(data: &[u64]) -> Vec<u64> {
     let mut longest_sequence = Vec::new();
 
     for seq_length in 1..=data.len() / 2 {
