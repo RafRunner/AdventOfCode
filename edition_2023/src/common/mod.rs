@@ -59,6 +59,29 @@ pub fn transpose<T>(matrix: Vec<Vec<T>>) -> Vec<Vec<T>> {
     transposed
 }
 
+pub fn turn_anticlock<T>(matrix: Vec<Vec<T>>) -> Vec<Vec<T>> {
+    let rows = matrix.len();
+    let cols = matrix[0].len();
+
+    let mut options = matrix
+        .into_iter()
+        .map(|line| line.into_iter().map(|it| Some(it)).collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+
+    let mut turned = Vec::new();
+
+    for j in 0..cols {
+        turned.push(Vec::new());
+
+        for i in (0..rows).rev() {
+            let char = options[i][j].take().unwrap();
+            turned[j].push(char);
+        }
+    }
+
+    turned
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
