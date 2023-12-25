@@ -1,3 +1,5 @@
+use crate::common::transpose;
+
 pub fn part_one(patterns: &str) -> usize {
     solve(patterns, 0)
 }
@@ -37,28 +39,12 @@ fn find_symetry(pattern: &str, target: usize) -> Option<Symmetry> {
         .map(|line| line.trim().chars().collect::<Vec<_>>())
         .collect::<Vec<_>>();
 
-    find_symetry_lines(&grid, target)
+    find_horizontal_symetry(&grid, target)
         .map(Symmetry::Horizontal)
-        .or_else(|| find_symetry_lines(&transpose(grid), target).map(Symmetry::Vertical))
+        .or_else(|| find_horizontal_symetry(&transpose(grid), target).map(Symmetry::Vertical))
 }
 
-fn transpose(matrix: Matrix) -> Matrix {
-    let rows = matrix.len();
-    let cols = matrix[0].len();
-
-    // Create a new matrix with dimensions swapped
-    let mut transposed = vec![vec![' '; rows]; cols];
-
-    for (i, row) in matrix.iter().enumerate() {
-        for (j, &val) in row.iter().enumerate() {
-            transposed[j][i] = val;
-        }
-    }
-
-    transposed
-}
-
-fn find_symetry_lines(matrix: &Matrix, target: usize) -> Option<usize> {
+fn find_horizontal_symetry(matrix: &Matrix, target: usize) -> Option<usize> {
     for line in 1..matrix.len() {
         let mut differences = 0;
 

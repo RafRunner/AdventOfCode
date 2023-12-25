@@ -37,6 +37,28 @@ impl Point {
     }
 }
 
+pub fn transpose<T>(matrix: Vec<Vec<T>>) -> Vec<Vec<T>> {
+    let rows = matrix.len();
+    let cols = matrix[0].len();
+
+    let mut flat = matrix
+        .into_iter()
+        .flatten()
+        .map(|it| Some(it))
+        .collect::<Vec<_>>();
+    let mut transposed = Vec::new();
+
+    for j in 0..cols {
+        transposed.push(Vec::new());
+
+        for i in 0..rows {
+            transposed[j].push(flat[i * cols + j].take().unwrap())
+        }
+    }
+
+    transposed
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
