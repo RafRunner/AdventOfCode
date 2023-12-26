@@ -41,18 +41,14 @@ pub fn transpose<T>(matrix: Vec<Vec<T>>) -> Vec<Vec<T>> {
     let rows = matrix.len();
     let cols = matrix[0].len();
 
-    let mut flat = matrix
-        .into_iter()
-        .flatten()
-        .map(|it| Some(it))
-        .collect::<Vec<_>>();
-    let mut transposed = Vec::new();
+    let mut transposed = Vec::with_capacity(cols);
+    for _ in 0..cols {
+        transposed.push(Vec::with_capacity(rows));
+    }
 
-    for j in 0..cols {
-        transposed.push(Vec::new());
-
-        for i in 0..rows {
-            transposed[j].push(flat[i * cols + j].take().unwrap())
+    for row in matrix.into_iter() {
+        for (j, item) in row.into_iter().enumerate() {
+            transposed[j].push(item);
         }
     }
 
@@ -63,19 +59,14 @@ pub fn turn_anticlock<T>(matrix: Vec<Vec<T>>) -> Vec<Vec<T>> {
     let rows = matrix.len();
     let cols = matrix[0].len();
 
-    let mut options = matrix
-        .into_iter()
-        .map(|line| line.into_iter().map(|it| Some(it)).collect::<Vec<_>>())
-        .collect::<Vec<_>>();
+    let mut turned: Vec<Vec<T>> = Vec::with_capacity(cols);
+    for _ in 0..cols {
+        turned.push(Vec::with_capacity(rows));
+    }
 
-    let mut turned = Vec::new();
-
-    for j in 0..cols {
-        turned.push(Vec::new());
-
-        for i in (0..rows).rev() {
-            let char = options[i][j].take().unwrap();
-            turned[j].push(char);
+    for row in matrix.into_iter().rev() {
+        for (j, item) in row.into_iter().enumerate() {
+            turned[j].push(item);
         }
     }
 
@@ -117,5 +108,51 @@ mod tests {
         let actual_pairs = Point::point_pairs(&points);
 
         assert_eq!(actual_pairs, expected_pairs);
+    }
+
+
+    #[test]
+    fn test_transposed() {
+        let matrix = vec![
+            vec![1, 2, 3, 10],
+            vec![4, 5, 6, 11],
+            vec![7, 8, 9, 12],
+        ];
+        let clone = matrix.clone();
+
+        let transposed = transpose(matrix);
+
+        let expected = vec![
+            vec![1, 4, 7],
+            vec![2, 5, 8],
+            vec![3, 6, 9],
+            vec![10, 11, 12],
+        ];
+
+        assert_eq!(expected, transposed);
+        assert_eq!(clone, transpose(transposed));
+    }
+
+    #[test]
+    fn test_turn_anticlock() {
+        
+        let matrix = vec![
+            vec![1, 2, 3, 10],
+            vec![4, 5, 6, 11],
+            vec![7, 8, 9, 12],
+        ];
+        let clone = matrix.clone();
+
+        let turned = turn_anticlock(matrix);
+
+        let expected = vec![
+            vec![7, 4, 1],
+            vec![8, 5, 2],
+            vec![9, 6, 3],
+            vec![12, 11, 10],
+        ];
+
+        assert_eq!(expected, turned);
+        assert_eq!(clone, turn_anticlock(turn_anticlock(turn_anticlock(turned))));
     }
 }
