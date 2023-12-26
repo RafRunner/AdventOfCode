@@ -45,20 +45,18 @@ pub fn part_two(rocks_str: &str) -> usize {
 }
 
 fn find_longest_repeating_sequence(data: &[u64]) -> Vec<u64> {
-    let mut longest_sequence = Vec::new();
-
-    for seq_length in 1..=data.len() / 2 {
+    for seq_length in (1..=data.len() / 2).rev() {
         let start = data.len() - seq_length * 2;
 
         let sequence = &data[start..start + seq_length];
         let next_sequence = &data[start + seq_length..start + seq_length * 2];
 
-        if sequence == next_sequence && sequence.len() > longest_sequence.len() {
-            longest_sequence = sequence.to_vec();
+        if sequence == next_sequence {
+            return sequence.to_vec();
         }
     }
 
-    longest_sequence
+    Vec::new()
 }
 
 fn parse(rocks_str: &str) -> Vec<Vec<char>> {
