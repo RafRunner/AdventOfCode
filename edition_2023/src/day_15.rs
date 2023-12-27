@@ -8,7 +8,7 @@ pub fn part_two(input: &str) -> usize {
     input
         .split(',')
         .map(Command::parse)
-        .for_each(|command| command.apply(&mut deer_hash_map));
+        .for_each(|command| deer_hash_map.apply(&command));
 
     deer_hash_map.calculate_power()
 }
@@ -34,36 +34,7 @@ impl Command {
             };
         }
 
-        panic!("Unknow command {cmd}");
-    }
-
-    fn apply(&self, map: &mut DeerHashMap) {
-        match self {
-            Self::Minus { label } => {
-                let lens_box = &mut map.lens_boxes[hash(label) as usize];
-
-                if let Some((index, _)) = lens_box.find_lens(label) {
-                    lens_box.lenses.remove(index);
-                }
-            }
-            Self::Equals {
-                label,
-                focal_length,
-            } => {
-                let lens = Lens {
-                    label: label.to_owned(),
-                    focal_length: *focal_length,
-                };
-
-                let lens_box = &mut map.lens_boxes[hash(label) as usize];
-
-                if let Some((index, _)) = lens_box.find_lens(label) {
-                    let _ = std::mem::replace(&mut lens_box.lenses[index], lens);
-                } else {
-                    lens_box.lenses.push(lens);
-                }
-            }
-        }
+        panic!("Unknown command {cmd}");
     }
 }
 
@@ -108,10 +79,6 @@ impl DeerHashMap {
             .iter()
             .enumerate()
             .fold(0, |acc, (box_number, lens_box)| {
-                if lens_box.lenses.is_empty() {
-                    return acc;
-                }
-
                 let partial = lens_box
                     .lenses
                     .iter()
@@ -121,14 +88,45 @@ impl DeerHashMap {
                 acc + (box_number + 1) * partial
             })
     }
+
+    fn apply(&mut self, command: &Command) {
+        match command {
+            Command::Minus { label } => {
+                let lens_box = self.get_box(label);
+
+                if let Some((index, _)) = lens_box.find_lens(label) {
+                    lens_box.lenses.remove(index);
+                }
+            }
+            Command::Equals {
+                label,
+                focal_length,
+            } => {
+                let lens = Lens {
+                    label: label.to_owned(),
+                    focal_length: *focal_length,
+                };
+
+                let lens_box = self.get_box(label);
+
+                if let Some((index, _)) = lens_box.find_lens(label) {
+                    let _ = std::mem::replace(&mut lens_box.lenses[index], lens);
+                } else {
+                    lens_box.lenses.push(lens);
+                }
+            }
+        }
+    }
+
+    fn get_box(&mut self, label: &str) -> &mut LensBox {
+        &mut self.lens_boxes[hash(label) as usize]
+    }
 }
 
 fn hash(string: &str) -> u8 {
     string.as_bytes().iter().fold(0, |acc, &cur| {
         let acc = acc as u64 + cur as u64;
-        let acc = acc * 17;
-        let acc = acc % 256;
-        acc as u8
+        ((acc * 17) % 256) as u8
     })
 }
 
