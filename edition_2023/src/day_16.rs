@@ -4,10 +4,37 @@ pub fn part_one(input: &str) -> usize {
     let mut map = parse(input);
     cast_rays(&mut map, 0, 0, RayDirection::Rightward);
 
-    map.iter()
-        .flatten()
-        .filter(|tile| !tile.rays.is_empty())
-        .count()
+    count_energized(&map)
+}
+
+pub fn part_two(input: &str) -> usize {
+    let mut map = parse(input);
+    let mut max = 0;
+
+    let rows = map.len();
+    let cols = map[0].len();
+
+    let directions = [
+        (RayDirection::Downward, (0..rows, 0..1)),
+        (RayDirection::Rightward, (0..1, 0..cols)),
+        (RayDirection::Upward, (0..rows, (cols - 1)..cols)),
+        (RayDirection::Leftward, ((rows - 1)..rows, 0..cols)),
+    ];
+
+    for (direction, (row_range, col_range)) in directions {
+        for i in row_range {
+            for j in col_range.clone() {
+                cast_rays(&mut map, i, j, direction.clone());
+                let result = count_energized(&map);
+                if result > max {
+                    max = result;
+                }
+                reset_rays(&mut map);
+            }
+        }
+    }
+
+    max
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
@@ -168,40 +195,24 @@ fn cast_rays(
     }
 }
 
+fn reset_rays(map: &mut [Vec<Tile>]) {
+    for line in map {
+        for tile in line {
+            tile.rays.clear()
+        }
+    }
+}
+
+fn count_energized(map: &[Vec<Tile>]) -> usize {
+    map.iter()
+        .flatten()
+        .filter(|tile| !tile.rays.is_empty())
+        .count()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn print_map(map: &[Vec<Tile>]) {
-        for line in map {
-            for tile in line {
-                let set = &tile.rays;
-
-                match &tile.kind {
-                    TileType::Empty => match set.len() {
-                        0 => print!("."),
-                        1 => match set.iter().next().unwrap() {
-                            RayDirection::Upward => print!("^"),
-                            RayDirection::Downward => print!("v"),
-                            RayDirection::Rightward => print!(">"),
-                            RayDirection::Leftward => print!("<"),
-                        },
-                        a => print!("{a}"),
-                    },
-                    TileType::Mirror(mirror) => match mirror {
-                        MirrorType::Foward => print!("/"),
-                        MirrorType::Back => print!("\\"),
-                    },
-                    TileType::Splitter(splitter) => match splitter {
-                        SplitterType::Horizontal => print!("-"),
-                        SplitterType::Vertical => print!("|"),
-                    },
-                }
-            }
-
-            println!();
-        }
-    }
 
     #[test]
     fn example() {
@@ -219,13 +230,14 @@ mod tests {
 
         let mut map = parse(input);
         cast_rays(&mut map, 0, 0, RayDirection::Rightward);
-        print_map(&map);
         assert_eq!(46, part_one(input));
+        assert_eq!(51, part_two(input));
     }
 
     #[test]
     fn real() {
         let input = include_str!("../res/day_16.txt");
         assert_eq!(7392, part_one(input));
+        assert_eq!(7665, part_two(input));
     }
 }
