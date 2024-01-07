@@ -110,7 +110,6 @@ mod tests {
         assert_eq!(actual_pairs, expected_pairs);
     }
 
-
     #[test]
     fn test_transposed() {
         let matrix = vec![
@@ -135,12 +134,7 @@ mod tests {
 
     #[test]
     fn test_turn_anticlock() {
-        
-        let matrix = vec![
-            vec![1, 2, 3, 10],
-            vec![4, 5, 6, 11],
-            vec![7, 8, 9, 12],
-        ];
+        let matrix = vec![vec![1, 2, 3, 10], vec![4, 5, 6, 11], vec![7, 8, 9, 12]];
         let clone = matrix.clone();
 
         let turned = turn_anticlock(matrix);
@@ -153,6 +147,9 @@ mod tests {
         ];
 
         assert_eq!(expected, turned);
-        assert_eq!(clone, turn_anticlock(turn_anticlock(turn_anticlock(turned))));
+        assert_eq!(
+            clone,
+            turn_anticlock(turn_anticlock(turn_anticlock(turned)))
+        );
     }
 }

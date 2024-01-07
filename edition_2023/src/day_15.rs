@@ -8,7 +8,7 @@ pub fn part_two(input: &str) -> usize {
     input
         .split(',')
         .map(Command::parse)
-        .for_each(|command| deer_hash_map.apply(&command));
+        .for_each(|command| deer_hash_map.apply(command));
 
     deer_hash_map.calculate_power()
 }
@@ -89,12 +89,12 @@ impl DeerHashMap {
             })
     }
 
-    fn apply(&mut self, command: &Command) {
+    fn apply(&mut self, command: Command) {
         match command {
             Command::Minus { label } => {
-                let lens_box = self.get_box(label);
+                let lens_box = self.get_box(&label);
 
-                if let Some((index, _)) = lens_box.find_lens(label) {
+                if let Some((index, _)) = lens_box.find_lens(&label) {
                     lens_box.lenses.remove(index);
                 }
             }
@@ -103,13 +103,13 @@ impl DeerHashMap {
                 focal_length,
             } => {
                 let lens = Lens {
-                    label: label.to_owned(),
-                    focal_length: *focal_length,
+                    label,
+                    focal_length,
                 };
 
-                let lens_box = self.get_box(label);
+                let lens_box = self.get_box(&lens.label);
 
-                if let Some((index, _)) = lens_box.find_lens(label) {
+                if let Some((index, _)) = lens_box.find_lens(&lens.label) {
                     let _ = std::mem::replace(&mut lens_box.lenses[index], lens);
                 } else {
                     lens_box.lenses.push(lens);
