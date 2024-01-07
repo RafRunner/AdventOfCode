@@ -112,11 +112,7 @@ mod tests {
 
     #[test]
     fn test_transposed() {
-        let matrix = vec![
-            vec![1, 2, 3, 10],
-            vec![4, 5, 6, 11],
-            vec![7, 8, 9, 12],
-        ];
+        let matrix = vec![vec![1, 2, 3, 10], vec![4, 5, 6, 11], vec![7, 8, 9, 12]];
         let clone = matrix.clone();
 
         let transposed = transpose(matrix);
