@@ -17,7 +17,9 @@ pub fn part_two(rocks_str: &str) -> usize {
     let mut sequence = Vec::new();
     let mut hashes = Vec::new();
 
-    for index in 0..usize::MAX {
+    let loops = 1000000000;
+
+    for index in 0..=loops {
         for _ in 0..4 {
             fall_north(&mut rocks);
             rocks = turn_anticlock(rocks);
@@ -26,37 +28,20 @@ pub fn part_two(rocks_str: &str) -> usize {
         sequence.push(last_value);
         let mut hasher = DefaultHasher::new();
         rocks.hash(&mut hasher);
-        hashes.push(hasher.finish());
+        let hash = hasher.finish();
 
-        // Let the sequence stabilize
-        if index > 10 {
-            let repetition = find_longest_repeating_sequence(&hashes);
-            if !repetition.is_empty() {
-                // Why -2? I don't know
-                let true_start = 1000000000 - index + repetition.len() * 2 - 2;
-                let rem = true_start % repetition.len();
+        if let Some((repetition, _)) = hashes.iter().rev().enumerate().find(|(_, h)| **h == hash) {
+            let repetition_size = repetition + 1;
+            let true_size = loops - (index - repetition_size);
+            let seq_index = true_size % repetition_size;
 
-                return sequence[index - (repetition.len() - rem - 1)];
-            }
+            return sequence[index - repetition_size + seq_index - 1];
         }
+
+        hashes.push(hash);
     }
 
-    unreachable!("A repetition should be found");
-}
-
-fn find_longest_repeating_sequence(data: &[u64]) -> Vec<u64> {
-    for seq_length in (1..=data.len() / 2).rev() {
-        let start = data.len() - seq_length * 2;
-
-        let sequence = &data[start..start + seq_length];
-        let next_sequence = &data[start + seq_length..start + seq_length * 2];
-
-        if sequence == next_sequence {
-            return sequence.to_vec();
-        }
-    }
-
-    Vec::new()
+    *sequence.last().unwrap()
 }
 
 fn parse(rocks_str: &str) -> Vec<Vec<char>> {
