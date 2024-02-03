@@ -7,7 +7,30 @@ use crate::common::Point;
 
 pub fn part_one(heat_map: &str) -> u32 {
     let mut grid = parse_heatmap(heat_map);
-    dijkstra(&mut grid);
+    dijkstra(&mut grid, |_, _, next| next.times_in_direction <= 3);
+
+    let lines = grid.len() - 1;
+    let columns = grid[0].len() - 1;
+
+    grid[lines][columns].distance.unwrap_or(u32::MAX)
+}
+
+pub fn part_two(heat_map: &str) -> u32 {
+    let mut grid = parse_heatmap(heat_map);
+    dijkstra(&mut grid, |last_direction, times_in_direction, next| {
+        if next.times_in_direction > 10 {
+            return false;
+        }
+
+        if *last_direction != Direction::None
+            && *last_direction != next.last_direction
+            && times_in_direction < 4
+        {
+            return false;
+        }
+
+        true
+    });
 
     let lines = grid.len() - 1;
     let columns = grid[0].len() - 1;
@@ -112,7 +135,10 @@ fn parse_heatmap(grid: &str) -> Vec<Vec<Node>> {
         .collect()
 }
 
-fn dijkstra(grid: &mut Vec<Vec<Node>>) {
+fn dijkstra<F>(grid: &mut Vec<Vec<Node>>, accep_next: F)
+where
+    F: Fn(&Direction, usize, &State) -> bool,
+{
     let mut heap = BinaryHeap::new();
     let mut seen = HashSet::new();
 
@@ -161,7 +187,7 @@ fn dijkstra(grid: &mut Vec<Vec<Node>>) {
                 },
             };
 
-            if next.times_in_direction > 3 {
+            if !accep_next(&last_direction, times_in_direction, &next) {
                 continue;
             }
 
@@ -199,13 +225,15 @@ mod tests {
         2546548887735
         4322674655533";
 
-        assert_eq!(102, part_one(heat_map))
+        assert_eq!(102, part_one(heat_map));
+        assert_eq!(94, part_two(heat_map));
     }
 
     #[test]
     fn real() {
         let heat_map = include_str!("../res/day_17.txt");
 
-        assert_eq!(1076, part_one(heat_map))
+        assert_eq!(1076, part_one(heat_map));
+        assert_eq!(1219, part_two(heat_map));
     }
 }
