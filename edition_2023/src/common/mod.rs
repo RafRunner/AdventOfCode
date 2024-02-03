@@ -1,4 +1,6 @@
-#[derive(Debug, PartialEq, Eq, Clone)]
+use std::cmp::Ordering;
+
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Point {
     pub x: isize,
     pub y: isize,
@@ -34,6 +36,18 @@ impl Point {
         }
 
         pairs
+    }
+}
+
+impl Ord for Point {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.y.cmp(&other.y).then_with(|| self.x.cmp(&other.x))
+    }
+}
+
+impl PartialOrd for Point {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
 
