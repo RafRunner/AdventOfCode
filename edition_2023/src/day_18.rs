@@ -18,6 +18,7 @@ pub fn part_one(dig_plan: &str) -> usize {
 
     let mut position = Point::new(0, 0);
     let mut points = Vec::new();
+    let mut perimeter = 0;
 
     for plan in plans {
         points.push(position.clone());
@@ -27,18 +28,18 @@ pub fn part_one(dig_plan: &str) -> usize {
             Direction::Left => position.x -= plan.leght as isize,
             Direction::Right => position.x += plan.leght as isize,
         }
+        perimeter += plan.leght;
     }
 
-    let area = Point::shoelace_area(&points);
-    let perimeter = Point::perimeter(&points);
+    let area = Point::shoelace_area(&points) as usize;
 
     // Pick's Theorem
     // Area = Inside + InEdge/2  - 1
     // Inside = Area - InEdge/2  + 1
 
-    let inside = (area - perimeter / 2.0 + 1.0) as usize;
+    let inside = area - perimeter / 2 + 1;
 
-    perimeter as usize + inside
+    perimeter + inside
 }
 
 #[derive(Debug, Clone)]
