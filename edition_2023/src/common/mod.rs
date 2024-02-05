@@ -37,6 +37,19 @@ impl Point {
 
         pairs
     }
+
+    pub fn perimeter(points: &[Self]) -> f64 {
+        points
+            .iter()
+            .zip(points.iter().cycle().skip(1))
+            .map(|(p1, p2)| {
+                let delta_x = (p2.x - p1.x).abs() as f64;
+                let delta_y = (p2.y - p1.y).abs() as f64;
+
+                f64::sqrt(delta_x.powf(2.0) + delta_y.powf(2.0))
+            })
+            .sum()
+    }
 }
 
 impl Ord for Point {
