@@ -1,18 +1,38 @@
 use crate::common::Point;
 
 pub fn part_one(dig_plan: &str) -> usize {
+    calculare_area(dig_plan, |direction, leght, _| DigPlanLine {
+        direction,
+        leght,
+    })
+}
+
+pub fn part_two(dig_plan: &str) -> usize {
+    calculare_area(dig_plan, |_, _, color| {
+        let leght_str = &color[2..color.len() - 2];
+        let direction_char = color.chars().nth(color.len() - 2).unwrap();
+
+        let direction = Direction::parse_part_two(direction_char);
+
+        DigPlanLine {
+            direction,
+            leght: usize::from_str_radix(leght_str, 16).unwrap(),
+        }
+    })
+}
+
+fn calculare_area<F>(dig_plan: &str, plan_builder: F) -> usize
+where
+    F: Fn(Direction, usize, String) -> DigPlanLine,
+{
     let plans: Vec<DigPlanLine> = dig_plan
         .lines()
         .map(|line| {
             let parts: Vec<_> = line.trim().split(' ').collect();
+            let direction = Direction::parse(parts[0].chars().next().unwrap());
+            let color = String::from(parts[2]);
 
-            let direction = Direction::parse(parts[0].chars().nth(0).unwrap());
-
-            DigPlanLine {
-                direction,
-                leght: parts[1].parse().unwrap(),
-                color: String::from(parts[2]),
-            }
+            plan_builder(direction, parts[1].parse().unwrap(), color)
         })
         .collect();
 
@@ -60,13 +80,22 @@ impl Direction {
             _ => panic!("Unexpected char for diretion: {char}"),
         }
     }
+
+    fn parse_part_two(char: char) -> Self {
+        match char {
+            '0' => Self::Right,
+            '1' => Self::Down,
+            '2' => Self::Left,
+            '3' => Self::Up,
+            _ => panic!("Invalid direction character"),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
 struct DigPlanLine {
     direction: Direction,
     leght: usize,
-    color: String,
 }
 
 #[cfg(test)]
@@ -92,6 +121,7 @@ mod tests {
         U 2 (#7a21e3)";
 
         assert_eq!(62, part_one(dig_plan));
+        assert_eq!(952408144115, part_two(dig_plan));
     }
 
     #[test]
@@ -99,5 +129,6 @@ mod tests {
         let input = include_str!("../res/day_18.txt");
 
         assert_eq!(35401, part_one(input));
+        assert_eq!(48020869073824, part_two(input));
     }
 }
