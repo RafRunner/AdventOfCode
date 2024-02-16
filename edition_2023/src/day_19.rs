@@ -1,6 +1,5 @@
-use std::{collections::HashMap, fmt::Debug};
+use std::{collections::HashMap, fmt::Debug, ops::Range};
 
-use num::BigInt;
 use regex::{Match, Regex};
 
 pub fn part_one(input: &str) -> isize {
@@ -9,53 +8,14 @@ pub fn part_one(input: &str) -> isize {
     program.run().iter().map(Part::sum).sum()
 }
 
-pub fn part_two(input: &str) -> BigInt {
+pub fn part_two(input: &str) -> usize {
     let program = Program::parse_program(input);
-    let mut possible_checks = Vec::new();
-    program.possible_checks(&mut possible_checks);
+    let possible_checks = program.possible_checks();
 
     possible_checks
-        .into_iter()
-        .map(|checks| {
-            let mut ranges = vec![1..4001, 1..4001, 1..4001, 1..4001];
-
-            for check in checks {
-                if let Instruction::Less {
-                    prop, to_compare, ..
-                } = check
-                {
-                    ranges[prop.index()].end = to_compare
-                } else if let Instruction::Greater {
-                    prop, to_compare, ..
-                } = check
-                {
-                    ranges[prop.index()].start = to_compare + 1
-                }
-            }
-
-            dbg!(&ranges);
-
-            ranges
-        })
-        .reduce(|mut acc, cur| {
-            for (a, c) in acc.iter_mut().zip(cur.iter()) {
-                if c.start > a.start && c.start < a.end {
-                    a.start = c.start;
-                }
-                if c.end < a.end && c.end > a.start {
-                    a.end = c.end;
-                }
-            }
-
-            acc
-        })
-        .unwrap_or_default()
-        .into_iter()
-        .map(|range| {
-            dbg!(&range);
-            BigInt::from(range.len())
-        })
-        .product::<BigInt>()
+        .iter()
+        .map(PartRange::number_of_possibilities)
+        .sum()
 }
 
 #[derive(Debug)]
@@ -88,12 +48,12 @@ impl Program {
     }
 
     fn run(&self) -> Vec<Part> {
+        let input = self.symbol_table.get("in").expect("No input workflow");
+
         let mut accepted = Vec::new();
 
-        if let Some(input) = self.symbol_table.get("in") {
-            for part in &self.parts {
-                self.execute_workflow(input, part, &mut accepted);
-            }
+        for part in &self.parts {
+            self.execute_workflow(input, part, &mut accepted);
         }
 
         accepted
@@ -111,23 +71,34 @@ impl Program {
                 }
                 NextStep::Reject => break,
                 NextStep::Goto(workflow) => {
-                    if let Some(next) = self.symbol_table.get(workflow.as_str()) {
-                        self.execute_workflow(next, part, accepted)
-                    }
+                    let next = self
+                        .symbol_table
+                        .get(workflow.as_str())
+                        .expect(&format!("Workflow {workflow} not found"));
+                    self.execute_workflow(next, part, accepted);
                     break;
                 }
             };
         }
     }
 
-    fn possible_checks(&self, possible_checks: &mut Vec<Vec<Instruction>>) {
-        if let Some(input) = self.symbol_table.get("in") {
-            let mut current_checks = Vec::new();
+    fn possible_checks(&self) -> Vec<PartRange> {
+        let input = self.symbol_table.get("in").expect("No input workflow");
 
-            input.possible_checks(&self.symbol_table, possible_checks, &mut current_checks);
-        }
+        let mut possible_checks = Vec::new();
+        let mut current_checks = Vec::new();
+        let mut ranges = Vec::new();
+        let mut range = PartRange::new();
 
-        dbg!(&possible_checks.len());
+        input.possible_checks(
+            &self.symbol_table,
+            &mut possible_checks,
+            &mut current_checks,
+            &mut ranges,
+            &mut range,
+        );
+
+        ranges
     }
 }
 
@@ -201,14 +172,37 @@ impl PartProp {
             _ => None,
         }
     }
+}
 
-    fn index(&self) -> usize {
-        match self {
-            PartProp::X => 0,
-            PartProp::M => 1,
-            PartProp::A => 2,
-            PartProp::S => 3,
+#[derive(Debug, Clone)]
+struct PartRange {
+    x: Range<isize>,
+    m: Range<isize>,
+    a: Range<isize>,
+    s: Range<isize>,
+}
+
+impl PartRange {
+    fn new() -> Self {
+        Self {
+            x: 1..4001,
+            m: 1..4001,
+            a: 1..4001,
+            s: 1..4001,
         }
+    }
+
+    fn get_mut(&mut self, prop: &PartProp) -> &mut Range<isize> {
+        match prop {
+            PartProp::X => &mut self.x,
+            PartProp::M => &mut self.m,
+            PartProp::A => &mut self.a,
+            PartProp::S => &mut self.s,
+        }
+    }
+
+    fn number_of_possibilities(&self) -> usize {
+        self.x.len() * self.m.len() * self.a.len() * self.s.len()
     }
 }
 
@@ -220,8 +214,7 @@ struct Workflow {
 
 lazy_static! {
     static ref WORKFLOW_REGEX: Regex = Regex::new(r"(\w+)\{([^}]+)\}").unwrap();
-    static ref GREATER_REGEX: Regex = Regex::new(r"(\w+)>(\d+):(.+)").unwrap();
-    static ref LESS_REGEX: Regex = Regex::new(r"(\w+)<(\d+):(.+)").unwrap();
+    static ref GREATER_LESS_REGEX: Regex = Regex::new(r"(\w+)([><])(\d+):(.+)").unwrap();
 }
 
 impl Workflow {
@@ -244,6 +237,8 @@ impl Workflow {
         symbol_table: &HashMap<String, Workflow>,
         possible_checks: &mut Vec<Vec<Instruction>>,
         current_checks: &mut Vec<Instruction>,
+        ranges: &mut Vec<PartRange>,
+        range: &mut PartRange,
     ) {
         for instruction in &self.instructions {
             if instruction.possible_checks(
@@ -251,6 +246,8 @@ impl Workflow {
                 symbol_table,
                 possible_checks,
                 current_checks,
+                ranges,
+                range,
             ) {
                 break;
             }
@@ -258,17 +255,19 @@ impl Workflow {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum ComparisonType {
+    Greater,
+    Less,
+}
+
 #[derive(Debug, Clone)]
 enum Instruction {
     Accept,
     Reject,
-    Greater {
+    Comparison {
         prop: PartProp,
-        to_compare: isize,
-        on_accept: Box<Instruction>,
-    },
-    Less {
-        prop: PartProp,
+        kind: ComparisonType,
         to_compare: isize,
         on_accept: Box<Instruction>,
     },
@@ -282,28 +281,16 @@ impl Instruction {
         match self {
             Instruction::Accept => NextStep::Accept,
             Instruction::Reject => NextStep::Reject,
-            Instruction::Greater {
+            Instruction::Comparison {
                 prop,
+                kind,
                 to_compare,
                 on_accept,
-            } => {
-                if part.get(prop) > *to_compare {
-                    on_accept.apply(part)
-                } else {
-                    NextStep::Continue
-                }
-            }
-            Instruction::Less {
-                prop,
-                to_compare,
-                on_accept,
-            } => {
-                if part.get(prop) < *to_compare {
-                    on_accept.apply(part)
-                } else {
-                    NextStep::Continue
-                }
-            }
+            } => match kind {
+                ComparisonType::Greater if part.get(prop) > *to_compare => on_accept.apply(part),
+                ComparisonType::Less if part.get(prop) < *to_compare => on_accept.apply(part),
+                _ => NextStep::Continue,
+            },
             Instruction::Goto { label } => NextStep::Goto(label.clone()),
         }
     }
@@ -311,29 +298,26 @@ impl Instruction {
     fn parse(text: &str) -> Option<Instruction> {
         if text == "A" {
             return Some(Instruction::Accept);
-        } else if text == "R" {
+        }
+        if text == "R" {
             return Some(Instruction::Reject);
         }
 
-        if let Some(caps) = GREATER_REGEX.captures(text) {
+        if let Some(caps) = GREATER_LESS_REGEX.captures(text) {
             let prop = PartProp::parse(caps.get(1)?.as_str())?;
-            let to_compare = caps.get(2)?.as_str().parse::<isize>().ok()?;
-            let on_accept = Box::new(Instruction::parse(caps.get(3)?.as_str())?);
+            let simbol = caps.get(2)?.as_str();
+            let to_compare = caps.get(3)?.as_str().parse::<isize>().ok()?;
+            let on_accept = Box::new(Instruction::parse(caps.get(4)?.as_str())?);
 
-            return Some(Instruction::Greater {
+            let kind = match simbol {
+                ">" => ComparisonType::Greater,
+                "<" => ComparisonType::Less,
+                _ => panic!("Invalid comparison sign {simbol}"),
+            };
+
+            return Some(Instruction::Comparison {
                 prop,
-                to_compare,
-                on_accept,
-            });
-        }
-
-        if let Some(caps) = LESS_REGEX.captures(text) {
-            let prop = PartProp::parse(caps.get(1)?.as_str())?;
-            let to_compare = caps.get(2)?.as_str().parse::<isize>().ok()?;
-            let on_accept = Box::new(Instruction::parse(caps.get(3)?.as_str())?);
-
-            return Some(Instruction::Less {
-                prop,
+                kind,
                 to_compare,
                 on_accept,
             });
@@ -350,27 +334,54 @@ impl Instruction {
         symbol_table: &HashMap<String, Workflow>,
         possible_checks: &mut Vec<Vec<Instruction>>,
         current_checks: &mut Vec<Instruction>,
+        ranges: &mut Vec<PartRange>,
+        range: &mut PartRange,
     ) -> bool {
         match self {
             Instruction::Accept => {
                 possible_checks.push(current_checks.clone());
+                ranges.push(range.clone());
                 return true;
             }
-            Instruction::Reject => (), // Do nothing for Reject
-            Instruction::Greater { on_accept, .. } | Instruction::Less { on_accept, .. } => {
-                let mut divergent_checks = current_checks.clone();
-                divergent_checks.push(instruction.clone());
+            Instruction::Reject => return true, // Break on Reject
+            Instruction::Comparison {
+                on_accept,
+                kind,
+                prop,
+                to_compare,
+            } => {
+                let mut true_range = range.clone();
+                let mut_true = true_range.get_mut(prop);
+                let mut_false = range.get_mut(prop);
+
+                match kind {
+                    ComparisonType::Greater => {
+                        mut_true.start = to_compare + 1;
+                        mut_false.end = *to_compare + 1;
+                    }
+                    ComparisonType::Less => {
+                        mut_true.end = *to_compare;
+                        mut_false.start = *to_compare;
+                    }
+                };
+
+                let mut true_checks = current_checks.clone();
+                true_checks.push(instruction.clone());
+
                 on_accept.possible_checks(
-                    &on_accept,
+                    on_accept,
                     symbol_table,
                     possible_checks,
-                    &mut divergent_checks,
+                    &mut true_checks,
+                    ranges,
+                    &mut true_range,
                 );
             }
             Instruction::Goto { label } => {
-                if let Some(next) = symbol_table.get(label.as_str()) {
-                    next.possible_checks(symbol_table, possible_checks, current_checks)
-                }
+                let next = symbol_table
+                    .get(label.as_str())
+                    .expect(&format!("Workflow {label} not found"));
+                next.possible_checks(symbol_table, possible_checks, current_checks, ranges, range);
             }
         };
 
@@ -404,10 +415,7 @@ mod tests {
         {x=2127,m=1623,a=2188,s=1013}";
 
         assert_eq!(19114, part_one(input));
-        assert_eq!(
-            BigInt::parse_bytes(b"167409079868000", 10).unwrap(),
-            part_two(input)
-        );
+        assert_eq!(167409079868000, part_two(input));
     }
 
     #[test]
@@ -415,9 +423,6 @@ mod tests {
         let input = include_str!("../res/day_19.txt");
 
         assert_eq!(575412, part_one(input));
-        assert_eq!(
-            BigInt::parse_bytes(b"167409079868000", 10).unwrap(),
-            part_two(input)
-        );
+        assert_eq!(126107942006821, part_two(input));
     }
 }

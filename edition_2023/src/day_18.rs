@@ -1,22 +1,22 @@
 use crate::common::Point;
 
 pub fn part_one(dig_plan: &str) -> usize {
-    calculare_area(dig_plan, |direction, leght, _| DigPlanLine {
+    calculare_area(dig_plan, |direction, length, _| DigPlanLine {
         direction,
-        leght,
+        length,
     })
 }
 
 pub fn part_two(dig_plan: &str) -> usize {
     calculare_area(dig_plan, |_, _, color| {
-        let leght_str = &color[2..color.len() - 2];
+        let length_str = &color[2..color.len() - 2];
         let direction_char = color.chars().nth(color.len() - 2).unwrap();
 
         let direction = Direction::parse_part_two(direction_char);
 
         DigPlanLine {
             direction,
-            leght: usize::from_str_radix(leght_str, 16).unwrap(),
+            length: usize::from_str_radix(length_str, 16).unwrap(),
         }
     })
 }
@@ -43,12 +43,12 @@ where
     for plan in plans {
         points.push(position.clone());
         match plan.direction {
-            Direction::Up => position.y -= plan.leght as isize,
-            Direction::Down => position.y += plan.leght as isize,
-            Direction::Left => position.x -= plan.leght as isize,
-            Direction::Right => position.x += plan.leght as isize,
+            Direction::Up => position.y -= plan.length as isize,
+            Direction::Down => position.y += plan.length as isize,
+            Direction::Left => position.x -= plan.length as isize,
+            Direction::Right => position.x += plan.length as isize,
         }
-        perimeter += plan.leght;
+        perimeter += plan.length;
     }
 
     let area = Point::shoelace_area(&points) as usize;
@@ -95,7 +95,7 @@ impl Direction {
 #[derive(Debug, Clone)]
 struct DigPlanLine {
     direction: Direction,
-    leght: usize,
+    length: usize,
 }
 
 #[cfg(test)]
