@@ -33,9 +33,7 @@ impl Program {
             let line = line.trim();
 
             if let Some(workflow) = Workflow::parse(line) {
-                symbol_table
-                    .entry(workflow.name.clone())
-                    .or_insert(workflow);
+                symbol_table.insert(workflow.name.clone(), workflow);
             } else if let Some(part) = Part::parse(line) {
                 parts.push(part);
             }
@@ -74,7 +72,7 @@ impl Program {
                     let next = self
                         .symbol_table
                         .get(workflow.as_str())
-                        .expect(&format!("Workflow {workflow} not found"));
+                        .unwrap_or_else(|| panic!("Workflow {workflow} not found"));
                     self.execute_workflow(next, part, accepted);
                     break;
                 }
@@ -85,18 +83,10 @@ impl Program {
     fn possible_checks(&self) -> Vec<PartRange> {
         let input = self.symbol_table.get("in").expect("No input workflow");
 
-        let mut possible_checks = Vec::new();
-        let mut current_checks = Vec::new();
         let mut ranges = Vec::new();
         let mut range = PartRange::new();
 
-        input.possible_checks(
-            &self.symbol_table,
-            &mut possible_checks,
-            &mut current_checks,
-            &mut ranges,
-            &mut range,
-        );
+        input.possible_checks(&self.symbol_table, &mut ranges, &mut range);
 
         ranges
     }
@@ -235,20 +225,11 @@ impl Workflow {
     fn possible_checks(
         &self,
         symbol_table: &HashMap<String, Workflow>,
-        possible_checks: &mut Vec<Vec<Instruction>>,
-        current_checks: &mut Vec<Instruction>,
         ranges: &mut Vec<PartRange>,
         range: &mut PartRange,
     ) {
         for instruction in &self.instructions {
-            if instruction.possible_checks(
-                instruction,
-                symbol_table,
-                possible_checks,
-                current_checks,
-                ranges,
-                range,
-            ) {
+            if instruction.possible_checks(symbol_table, ranges, range) {
                 break;
             }
         }
@@ -330,16 +311,12 @@ impl Instruction {
 
     fn possible_checks(
         &self,
-        instruction: &Instruction,
         symbol_table: &HashMap<String, Workflow>,
-        possible_checks: &mut Vec<Vec<Instruction>>,
-        current_checks: &mut Vec<Instruction>,
         ranges: &mut Vec<PartRange>,
         range: &mut PartRange,
     ) -> bool {
         match self {
             Instruction::Accept => {
-                possible_checks.push(current_checks.clone());
                 ranges.push(range.clone());
                 return true;
             }
@@ -357,7 +334,7 @@ impl Instruction {
                 match kind {
                     ComparisonType::Greater => {
                         mut_true.start = to_compare + 1;
-                        mut_false.end = *to_compare + 1;
+                        mut_false.end = to_compare + 1;
                     }
                     ComparisonType::Less => {
                         mut_true.end = *to_compare;
@@ -365,23 +342,13 @@ impl Instruction {
                     }
                 };
 
-                let mut true_checks = current_checks.clone();
-                true_checks.push(instruction.clone());
-
-                on_accept.possible_checks(
-                    on_accept,
-                    symbol_table,
-                    possible_checks,
-                    &mut true_checks,
-                    ranges,
-                    &mut true_range,
-                );
+                on_accept.possible_checks(symbol_table, ranges, &mut true_range);
             }
             Instruction::Goto { label } => {
                 let next = symbol_table
                     .get(label.as_str())
-                    .expect(&format!("Workflow {label} not found"));
-                next.possible_checks(symbol_table, possible_checks, current_checks, ranges, range);
+                    .unwrap_or_else(|| panic!("Workflow {label} not found"));
+                next.possible_checks(symbol_table, ranges, range);
             }
         };
 
