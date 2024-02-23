@@ -6,14 +6,33 @@ use std::{
 
 pub fn part_one(input: &str) -> usize {
     let mut pulse_count = (0, 0);
+    let mut cycles = HashMap::new();
 
     let modules = parse_modules(input);
 
     for _ in 0..1000 {
-        press_button(&modules, &mut pulse_count);
+        press_button(&modules, &mut pulse_count, &mut cycles, 0, "");
     }
 
     pulse_count.0 * pulse_count.1
+}
+
+pub fn part_two(input: &str) -> usize {
+    let mut cycles = HashMap::new();
+    let mut presses = 0;
+
+    let modules = parse_modules(input);
+
+    loop {
+        presses += 1;
+        press_button(&modules, &mut (0, 0), &mut cycles, presses, "sq");
+
+        if cycles.len() == 4 {
+            break;
+        }
+    }
+
+    cycles.values().copied().reduce(num::integer::lcm).unwrap()
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -116,7 +135,13 @@ fn parse_modules(input: &str) -> HashMap<String, RefCell<Module>> {
     modules
 }
 
-fn press_button(modules: &HashMap<String, RefCell<Module>>, pulse_count: &mut (usize, usize)) {
+fn press_button(
+    modules: &HashMap<String, RefCell<Module>>,
+    pulse_count: &mut (usize, usize),
+    cycles: &mut HashMap<String, usize>,
+    presses: usize,
+    target_conjunction: &str,
+) {
     let button = RefCell::new(Module {
         name: "button".to_string(),
         kind: ModuleType::Broadcast,
@@ -135,6 +160,10 @@ fn press_button(modules: &HashMap<String, RefCell<Module>>, pulse_count: &mut (u
                 match pulse {
                     Pulse::High => pulse_count.0 += 1,
                     Pulse::Low => pulse_count.1 += 1,
+                }
+
+                if pulse == Pulse::High && target == target_conjunction {
+                    cycles.entry(module.name.clone()).or_insert(presses);
                 }
 
                 if let Some(target_module) = modules.get(target) {
@@ -175,5 +204,6 @@ mod test {
         let input = include_str!("../res/day_20.txt");
 
         assert_eq!(867118762, part_one(input));
+        assert_eq!(217317393039529, part_two(input));
     }
 }
