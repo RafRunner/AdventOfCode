@@ -4,6 +4,18 @@ use std::{
     vec,
 };
 
+pub fn part_one(input: &str) -> usize {
+    let mut pulse_count = (0, 0);
+
+    let modules = parse_modules(input);
+
+    for _ in 0..1000 {
+        press_button(&modules, &mut pulse_count);
+    }
+
+    pulse_count.0 * pulse_count.1
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Pulse {
     High,
@@ -83,11 +95,8 @@ fn parse_modules(input: &str) -> HashMap<String, RefCell<Module>> {
     let modules: HashMap<String, RefCell<Module>> = input
         .lines()
         .map(Module::parse)
-        .map(RefCell::new)
-        .map(|m| {
-            let name = m.borrow().name.clone();
-            (name, m)
-        })
+        .map(|m| (m.name.clone(), m))
+        .map(|(key, val)| (key, RefCell::new(val)))
         .collect();
 
     for (name, module) in modules.iter() {
@@ -122,7 +131,7 @@ fn press_button(modules: &HashMap<String, RefCell<Module>>, pulse_count: &mut (u
 
         if let Some(pulse) = module.process_pulse(current_sender.as_str(), &current_pulse) {
             for target in &module.targets {
-                println!("{} -> -{:?} {}", module.name, pulse, target);
+                // println!("{} -> -{:?} {}", module.name, pulse, target);
                 match pulse {
                     Pulse::High => pulse_count.0 += 1,
                     Pulse::Low => pulse_count.1 += 1,
@@ -148,17 +157,23 @@ mod test {
         %b -> c
         %c -> inv
         &inv -> a";
-        // let input = "\
-        // broadcaster -> a
-        // %a -> inv, con
-        // &inv -> b
-        // %b -> con
-        // &con -> output";
 
-        let mut pulse_count = (0, 0);
+        assert_eq!(32_000_000, part_one(input));
 
-        let modules = parse_modules(input);
-        press_button(&modules, &mut pulse_count);
-        dbg!(pulse_count);
+        let input = "\
+        broadcaster -> a
+        %a -> inv, con
+        &inv -> b
+        %b -> con
+        &con -> output";
+
+        assert_eq!(11_687_500, part_one(input));
+    }
+
+    #[test]
+    fn real() {
+        let input = include_str!("../res/day_20.txt");
+
+        assert_eq!(867118762, part_one(input));
     }
 }
