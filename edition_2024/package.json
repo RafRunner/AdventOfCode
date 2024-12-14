@@ -1,0 +1,12 @@
+{
+  "name": "edition_2024",
+  "version": "1.0.0",
+  "description": "Solutions to the 2024 edition of Advent of Code",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "type": "module",
+  "author": "Rafael Nunes Santana",
+  "license": "MIT"
+}
